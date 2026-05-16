@@ -1,32 +1,51 @@
-import { hexToRgb, rgbToHex, type Rgb } from "./wavePresets.ts";
+import {
+  hexToRgb,
+  normalizeGradientStops,
+  rgbToHex,
+  stopsFromColors,
+  type GradientStop,
+  type Rgb,
+} from "./wavePresets.ts";
 
 export const MIN_GRADIENT_STOPS = 2;
 export const MAX_GRADIENT_STOPS = 12;
+const MIN_STOP_GAP = 0.02;
 
 export type GradientStopsUI = {
   mirrorCheckbox: HTMLInputElement;
-  getStops: () => Rgb[];
+  getStops: () => GradientStop[];
   getMirror: () => boolean;
-  setStops: (stops: Rgb[], mirror?: boolean) => void;
+  setStops: (stops: GradientStop[] | Rgb[], mirror?: boolean) => void;
 };
 
-function stopPositionRatio(index: number, count: number): number {
-  if (count <= 1) return 0.5;
-  return index / (count - 1);
-}
-
-function nearestStopIndex(t: number, count: number): number {
-  if (count <= 1) return 0;
+function nearestStopIndex(t: number, stops: GradientStop[]): number {
+  if (stops.length <= 1) return 0;
   let best = 0;
   let bestDist = Infinity;
-  for (let i = 0; i < count; i++) {
-    const dist = Math.abs(stopPositionRatio(i, count) - t);
+  for (let i = 0; i < stops.length; i++) {
+    const dist = Math.abs(stops[i]!.pos - t);
     if (dist < bestDist) {
       bestDist = dist;
       best = i;
     }
   }
   return best;
+}
+
+function lerpRgb(a: Rgb, b: Rgb, t: number): Rgb {
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+}
+
+function gradientCss(stops: GradientStop[], mirror: boolean): string {
+  const parts = stops.map((s) => `${rgbToHex(s.color)} ${s.pos * 100}%`);
+  if (!mirror) return `linear-gradient(90deg, ${parts.join(", ")})`;
+  const mirrored = stops
+    .slice()
+    .reverse()
+    .map((s) => ({ color: s.color, pos: 1 - s.pos }))
+    .filter((s) => s.pos > 0 && s.pos < 1);
+  const combined = [...stops, ...mirrored].sort((a, b) => a.pos - b.pos);
+  return `linear-gradient(90deg, ${combined.map((s) => `${rgbToHex(s.color)} ${s.pos * 100}%`).join(", ")})`;
 }
 
 export function createGradientStopsUI(parent: HTMLElement, onChange: () => void): GradientStopsUI {
@@ -37,10 +56,7 @@ export function createGradientStopsUI(parent: HTMLElement, onChange: () => void)
   const previewWrap = document.createElement("div");
   previewWrap.className = "gradient-preview-wrap";
   previewWrap.setAttribute("role", "group");
-  previewWrap.setAttribute(
-    "aria-label",
-    "Gradient preview — click bar or handles to select a stop",
-  );
+  previewWrap.setAttribute("aria-label", "Gradient preview — drag handles to reposition stops");
 
   const preview = document.createElement("div");
   preview.className = "gradient-preview";
@@ -77,12 +93,20 @@ export function createGradientStopsUI(parent: HTMLElement, onChange: () => void)
   controls.append(addBtn, removeBtn);
   parent.append(sectionLabel, previewWrap, stopsList, controls, mirrorLabel);
 
-  let stops: Rgb[] = [
-    [0.04, 0.06, 0.12],
-    [0.25, 0.65, 0.98],
-    [0.95, 0.45, 0.72],
-  ];
+  let stops: GradientStop[] = normalizeGradientStops(
+    stopsFromColors([
+      [0.04, 0.06, 0.12],
+      [0.25, 0.65, 0.98],
+      [0.95, 0.45, 0.72],
+    ]),
+  );
   let selectedIndex = 0;
+  let dragIndex = -1;
+
+  function emitChange() {
+    stops = normalizeGradientStops(stops);
+    onChange();
+  }
 
   function selectStop(index: number) {
     selectedIndex = Math.max(0, Math.min(index, stops.length - 1));
@@ -90,45 +114,67 @@ export function createGradientStopsUI(parent: HTMLElement, onChange: () => void)
     updateMarkers();
   }
 
+  function setStopPosition(index: number, pos: number) {
+    if (index <= 0 || index >= stops.length - 1) return;
+    const minP = stops[index - 1]!.pos + MIN_STOP_GAP;
+    const maxP = stops[index + 1]!.pos - MIN_STOP_GAP;
+    stops[index]!.pos = Math.max(minP, Math.min(maxP, pos));
+    emitChange();
+    updatePreview();
+    updateMarkers();
+    renderRows();
+  }
+
   function updatePreview() {
-    const parts = stops.map((s) => rgbToHex(s));
-    if (mirrorCheckbox.checked) {
-      const mirrored = [...parts, ...[...parts].reverse().slice(1)];
-      preview.style.background = `linear-gradient(90deg, ${mirrored.join(", ")})`;
-    } else {
-      preview.style.background = `linear-gradient(90deg, ${parts.join(", ")})`;
-    }
+    preview.style.background = gradientCss(stops, mirrorCheckbox.checked);
   }
 
   function updateMarkers() {
     markers.replaceChildren();
-    stops.forEach((color, index) => {
+    stops.forEach((stop, index) => {
       const marker = document.createElement("button");
       marker.type = "button";
       marker.className = "gradient-preview-marker";
       marker.classList.toggle("selected", index === selectedIndex);
-      marker.style.left = `${stopPositionRatio(index, stops.length) * 100}%`;
-      marker.style.backgroundColor = rgbToHex(color);
-      marker.title = `Stop ${index + 1}`;
-      marker.setAttribute("aria-label", `Select stop ${index + 1}`);
+      marker.classList.toggle("locked", index === 0 || index === stops.length - 1);
+      marker.style.left = `${stop.pos * 100}%`;
+      marker.style.backgroundColor = rgbToHex(stop.color);
+      const isEdge = index === 0 || index === stops.length - 1;
+      marker.title = isEdge ? `Stop ${index + 1} (edge)` : `Stop ${index + 1} — drag to reposition`;
+      marker.setAttribute("aria-label", marker.title);
       marker.setAttribute("aria-pressed", String(index === selectedIndex));
+
       marker.addEventListener("click", (e) => {
         e.stopPropagation();
         selectStop(index);
       });
+
+      if (!isEdge) {
+        marker.addEventListener("pointerdown", (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          dragIndex = index;
+          selectStop(index);
+          marker.setPointerCapture(e.pointerId);
+        });
+      }
+
       markers.append(marker);
     });
   }
 
   function renderRows() {
     stopsList.replaceChildren();
-    stops.forEach((color, index) => {
+    stops.forEach((stop, index) => {
       const row = document.createElement("div");
       row.className = "gradient-stop-row";
       if (index === selectedIndex) row.classList.add("selected");
-      row.setAttribute("role", "button");
-      row.tabIndex = 0;
-      row.setAttribute("aria-pressed", String(index === selectedIndex));
+
+      const head = document.createElement("div");
+      head.className = "gradient-stop-head";
+      head.setAttribute("role", "button");
+      head.tabIndex = 0;
+      head.setAttribute("aria-pressed", String(index === selectedIndex));
 
       const indexLabel = document.createElement("span");
       indexLabel.className = "stop-index";
@@ -141,24 +187,50 @@ export function createGradientStopsUI(parent: HTMLElement, onChange: () => void)
       const input = document.createElement("input");
       input.type = "color";
       input.id = `gradient-stop-${index}`;
-      input.value = rgbToHex(color);
+      input.value = rgbToHex(stop.color);
       input.addEventListener("click", (e) => e.stopPropagation());
       input.addEventListener("input", () => {
-        stops[index] = hexToRgb(input.value);
+        stops[index]!.color = hexToRgb(input.value);
         updatePreview();
         updateMarkers();
         onChange();
       });
 
-      row.append(indexLabel, lbl, input);
-      row.addEventListener("click", () => selectStop(index));
-      row.addEventListener("keydown", (e) => {
+      head.append(indexLabel, lbl, input);
+      head.addEventListener("click", () => selectStop(index));
+      head.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           selectStop(index);
         }
       });
 
+      row.append(head);
+
+      const isEdge = index === 0 || index === stops.length - 1;
+      const posField = document.createElement("div");
+      posField.className = "gradient-stop-pos";
+
+      const posLabel = document.createElement("label");
+      posLabel.htmlFor = `gradient-pos-${index}`;
+      posLabel.textContent = isEdge
+        ? `Position ${Math.round(stop.pos * 100)}% (fixed)`
+        : "Position";
+
+      const posSlider = document.createElement("input");
+      posSlider.type = "range";
+      posSlider.id = `gradient-pos-${index}`;
+      posSlider.min = "0";
+      posSlider.max = "100";
+      posSlider.step = "1";
+      posSlider.value = String(Math.round(stop.pos * 100));
+      posSlider.disabled = isEdge;
+      posSlider.addEventListener("input", () => {
+        setStopPosition(index, Number(posSlider.value) / 100);
+      });
+
+      posField.append(posLabel, posSlider);
+      row.append(posField);
       stopsList.append(row);
     });
 
@@ -177,34 +249,60 @@ export function createGradientStopsUI(parent: HTMLElement, onChange: () => void)
     if ((e.target as HTMLElement).closest(".gradient-preview-marker")) return;
     const rect = preview.getBoundingClientRect();
     const t = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    selectStop(nearestStopIndex(t, stops.length));
+    selectStop(nearestStopIndex(t, stops));
+  });
+
+  previewWrap.addEventListener("pointermove", (e) => {
+    if (dragIndex < 0) return;
+    const rect = preview.getBoundingClientRect();
+    const t = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    setStopPosition(dragIndex, t);
+  });
+
+  previewWrap.addEventListener("pointerup", () => {
+    dragIndex = -1;
+  });
+  previewWrap.addEventListener("pointercancel", () => {
+    dragIndex = -1;
   });
 
   previewWrap.addEventListener("keydown", (e) => {
+    const step = e.shiftKey ? 0.05 : 0.01;
     if (e.key === "ArrowLeft") {
       e.preventDefault();
-      selectStop(selectedIndex - 1);
+      if (selectedIndex > 0 && selectedIndex < stops.length - 1) {
+        setStopPosition(selectedIndex, stops[selectedIndex]!.pos - step);
+      } else {
+        selectStop(selectedIndex - 1);
+      }
     } else if (e.key === "ArrowRight") {
       e.preventDefault();
-      selectStop(selectedIndex + 1);
+      if (selectedIndex > 0 && selectedIndex < stops.length - 1) {
+        setStopPosition(selectedIndex, stops[selectedIndex]!.pos + step);
+      } else {
+        selectStop(selectedIndex + 1);
+      }
     }
   });
   previewWrap.tabIndex = 0;
 
   addBtn.addEventListener("click", () => {
     if (stops.length >= MAX_GRADIENT_STOPS) return;
-    const last = stops[stops.length - 1]!;
-    const prev = stops[stops.length - 2] ?? last;
-    stops.push([(last[0] + prev[0]) * 0.5, (last[1] + prev[1]) * 0.5, (last[2] + prev[2]) * 0.5]);
-    selectStop(stops.length - 1);
-    onChange();
+    const i = selectedIndex;
+    const next = Math.min(i + 1, stops.length - 1);
+    const pos = (stops[i]!.pos + stops[next]!.pos) * 0.5;
+    const color = lerpRgb(stops[i]!.color, stops[next]!.color, 0.5);
+    stops.splice(next, 0, { color, pos });
+    selectStop(next);
+    emitChange();
   });
 
   removeBtn.addEventListener("click", () => {
     if (stops.length <= MIN_GRADIENT_STOPS) return;
+    if (selectedIndex === 0 || selectedIndex === stops.length - 1) return;
     stops.splice(selectedIndex, 1);
     selectStop(Math.min(selectedIndex, stops.length - 1));
-    onChange();
+    emitChange();
   });
 
   mirrorCheckbox.addEventListener("change", () => {
@@ -212,11 +310,11 @@ export function createGradientStopsUI(parent: HTMLElement, onChange: () => void)
     onChange();
   });
 
-  function setStops(next: Rgb[], mirror = false) {
-    stops = next.slice(0, MAX_GRADIENT_STOPS).map((s) => [...s] as Rgb);
-    while (stops.length < MIN_GRADIENT_STOPS) {
-      stops.push([...stops[stops.length - 1]!] as Rgb);
-    }
+  function setStops(next: GradientStop[] | Rgb[], mirror = false) {
+    const isRgbOnly = next.length > 0 && Array.isArray(next[0]) && !("pos" in (next[0] as object));
+    stops = normalizeGradientStops(
+      isRgbOnly ? stopsFromColors(next as Rgb[]) : (next as GradientStop[]),
+    );
     mirrorCheckbox.checked = mirror;
     selectStop(0);
   }
@@ -225,7 +323,7 @@ export function createGradientStopsUI(parent: HTMLElement, onChange: () => void)
 
   return {
     mirrorCheckbox,
-    getStops: () => stops.map((s) => [...s] as Rgb),
+    getStops: () => stops.map((s) => ({ color: [...s.color] as Rgb, pos: s.pos })),
     getMirror: () => mirrorCheckbox.checked,
     setStops,
   };

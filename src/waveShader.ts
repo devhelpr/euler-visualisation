@@ -1,5 +1,5 @@
 import { MAX_GRADIENT_STOPS } from "./waveGradient.ts";
-import type { Rgb } from "./wavePresets.ts";
+import type { GradientStop } from "./wavePresets.ts";
 import type { WaveViewTransform } from "./waveView.ts";
 
 const VERT = `#version 300 es
@@ -21,6 +21,7 @@ uniform vec2 u_resolution;
 uniform float u_time;
 uniform float u_theta;
 uniform vec3 u_stops[${MAX_GRADIENT_STOPS}];
+uniform float u_stopPositions[${MAX_GRADIENT_STOPS}];
 uniform int u_stopCount;
 uniform float u_gradientMirror;
 uniform float u_speed;
@@ -70,11 +71,19 @@ vec3 sampleGradient(float t) {
   t = mapGradientT(t);
   int n = u_stopCount;
   if (n <= 1) return u_stops[0];
-  float seg = t * float(n - 1);
-  int i = int(floor(seg));
-  int j = min(i + 1, n - 1);
-  float f = fract(seg);
-  return mix(u_stops[i], u_stops[j], f);
+  if (t <= u_stopPositions[0]) return u_stops[0];
+  if (t >= u_stopPositions[n - 1]) return u_stops[n - 1];
+
+  for (int i = 0; i < ${MAX_GRADIENT_STOPS - 1}; i++) {
+    if (i >= n - 1) break;
+    float p0 = u_stopPositions[i];
+    float p1 = u_stopPositions[i + 1];
+    if (t >= p0 && t <= p1) {
+      float f = (t - p0) / max(p1 - p0, 0.0001);
+      return mix(u_stops[i], u_stops[i + 1], f);
+    }
+  }
+  return u_stops[n - 1];
 }
 
 void main() {
@@ -136,7 +145,7 @@ export type WaveShaderState = {
   freq: number;
   harmonics: number;
   amplitude: number;
-  stops: Rgb[];
+  stops: GradientStop[];
   gradientMirror: boolean;
   view: WaveViewTransform;
 };
@@ -185,6 +194,7 @@ function getWebGL2(canvas: HTMLCanvasElement): WebGL2RenderingContext {
 }
 
 const stopsFlat = new Float32Array(MAX_GRADIENT_STOPS * 3);
+const positionsFlat = new Float32Array(MAX_GRADIENT_STOPS);
 
 export function createWaveShader(container: HTMLElement): WaveShader {
   const canvas = document.createElement("canvas");
@@ -205,6 +215,7 @@ export function createWaveShader(container: HTMLElement): WaveShader {
   const uTime = gl.getUniformLocation(program, "u_time")!;
   const uTheta = gl.getUniformLocation(program, "u_theta")!;
   const uStops = gl.getUniformLocation(program, "u_stops")!;
+  const uStopPositions = gl.getUniformLocation(program, "u_stopPositions")!;
   const uStopCount = gl.getUniformLocation(program, "u_stopCount")!;
   const uGradientMirror = gl.getUniformLocation(program, "u_gradientMirror")!;
   const uSpeed = gl.getUniformLocation(program, "u_speed")!;
@@ -223,12 +234,6 @@ export function createWaveShader(container: HTMLElement): WaveShader {
   gl.bindBuffer(gl.ARRAY_BUFFER, quad);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
 
-  const defaultStops: Rgb[] = [
-    [0.04, 0.06, 0.12],
-    [0.25, 0.65, 0.98],
-    [0.95, 0.45, 0.72],
-  ];
-
   const state: WaveShaderState = {
     theta: 0,
     speed: 1,
@@ -236,7 +241,11 @@ export function createWaveShader(container: HTMLElement): WaveShader {
     freq: 2.2,
     harmonics: 4,
     amplitude: 1.15,
-    stops: defaultStops.map((s) => [...s] as Rgb),
+    stops: [
+      { color: [0.04, 0.06, 0.12], pos: 0 },
+      { color: [0.25, 0.65, 0.98], pos: 0.5 },
+      { color: [0.95, 0.45, 0.72], pos: 1 },
+    ],
     gradientMirror: false,
     view: {
       translateX: 0,
@@ -251,14 +260,20 @@ export function createWaveShader(container: HTMLElement): WaveShader {
 
   function uploadStops() {
     const n = Math.min(state.stops.length, MAX_GRADIENT_STOPS);
-    const fallback = state.stops[n - 1] ?? state.stops[0] ?? [0, 0, 0];
+    const fallback = state.stops[n - 1] ??
+      state.stops[0] ?? {
+        color: [0, 0, 0] as const,
+        pos: 1,
+      };
     for (let i = 0; i < MAX_GRADIENT_STOPS; i++) {
-      const c = state.stops[i] ?? fallback;
-      stopsFlat[i * 3] = c[0];
-      stopsFlat[i * 3 + 1] = c[1];
-      stopsFlat[i * 3 + 2] = c[2];
+      const stop = state.stops[i] ?? fallback;
+      stopsFlat[i * 3] = stop.color[0];
+      stopsFlat[i * 3 + 1] = stop.color[1];
+      stopsFlat[i * 3 + 2] = stop.color[2];
+      positionsFlat[i] = stop.pos;
     }
     gl.uniform3fv(uStops, stopsFlat);
+    gl.uniform1fv(uStopPositions, positionsFlat);
     gl.uniform1i(uStopCount, n);
     gl.uniform1f(uGradientMirror, state.gradientMirror ? 1 : 0);
   }
@@ -316,12 +331,20 @@ export function createWaveShader(container: HTMLElement): WaveShader {
     canvas,
     setState(partial) {
       Object.assign(state, partial);
-      if (partial.stops) state.stops = partial.stops.map((s) => [...s] as Rgb);
+      if (partial.stops) {
+        state.stops = partial.stops.map((s) => ({
+          color: [...s.color] as GradientStop["color"],
+          pos: s.pos,
+        }));
+      }
       if (partial.view) state.view = { ...state.view, ...partial.view };
     },
     getState: () => ({
       ...state,
-      stops: state.stops.map((s) => [...s] as Rgb),
+      stops: state.stops.map((s) => ({
+        color: [...s.color] as GradientStop["color"],
+        pos: s.pos,
+      })),
       view: { ...state.view },
     }),
     resize,

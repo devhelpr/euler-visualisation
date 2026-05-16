@@ -4,7 +4,7 @@ import { createScene3D } from "./scene3d.ts";
 import { createWaveShader } from "./waveShader.ts";
 import { createGradientStopsUI } from "./waveGradient.ts";
 import { bindWaveGestures, createWaveViewHandlers, type WaveViewSliders } from "./waveView.ts";
-import { WAVE_PRESETS, type WavePreset } from "./wavePresets.ts";
+import { parsePresetStops, WAVE_PRESETS, type WavePreset } from "./wavePresets.ts";
 
 const TAU = Math.PI * 2;
 const ARGAND_SIZE = 320;
@@ -349,10 +349,7 @@ function applyPreset(preset: WavePreset) {
   for (const btn of presetRow.querySelectorAll<HTMLButtonElement>(".preset-btn")) {
     btn.classList.toggle("active", btn.dataset.preset === preset.id);
   }
-  gradientUI.setStops(
-    preset.stops.map((s) => [...s] as (typeof preset.stops)[0]),
-    preset.mirror ?? false,
-  );
+  gradientUI.setStops(parsePresetStops(preset.stops), preset.mirror ?? false);
   wave.setState({
     speed: preset.speed,
     freq: preset.freq,
