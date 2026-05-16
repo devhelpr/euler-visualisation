@@ -1,3 +1,4 @@
+import { MAX_GRADIENT_STOPS } from "./waveGradient.ts";
 import type { Rgb } from "./wavePresets.ts";
 import type { WaveViewTransform } from "./waveView.ts";
 
@@ -19,9 +20,9 @@ out vec4 outColor;
 uniform vec2 u_resolution;
 uniform float u_time;
 uniform float u_theta;
-uniform vec3 u_colorA;
-uniform vec3 u_colorB;
-uniform vec3 u_colorC;
+uniform vec3 u_stops[${MAX_GRADIENT_STOPS}];
+uniform int u_stopCount;
+uniform float u_gradientMirror;
 uniform float u_speed;
 uniform float u_freq;
 uniform float u_harmonics;
@@ -56,6 +57,25 @@ vec2 applyView(vec2 p) {
   return p;
 }
 
+float mapGradientT(float t) {
+  t = clamp(t, 0.0, 1.0);
+  if (u_gradientMirror > 0.5) {
+    return 1.0 - abs(t * 2.0 - 1.0);
+  }
+  return t;
+}
+
+vec3 sampleGradient(float t) {
+  t = mapGradientT(t);
+  int n = u_stopCount;
+  if (n <= 1) return u_stops[0];
+  float seg = t * float(n - 1);
+  int i = int(floor(seg));
+  int j = min(i + 1, n - 1);
+  float f = fract(seg);
+  return mix(u_stops[i], u_stops[j], f);
+}
+
 void main() {
   vec2 aspect = vec2(u_resolution.x / u_resolution.y, 1.0);
   vec2 p = applyView((v_uv - 0.5) * aspect * 3.2);
@@ -68,7 +88,6 @@ void main() {
     float fi = float(i) + 1.0;
     float timePhase = -u_speed * u_time * fi + u_theta * fi;
 
-    // Explicit 2D interference: X-traveling + Y-traveling + diagonal waves
     float phaseX = u_freq * fi * u_kxScale * p.x + timePhase;
     float phaseY = u_freq * fi * u_kyScale * p.y + timePhase + 0.785398;
     float phaseXY = u_freq * fi * (u_kxScale * p.x + u_kyScale * p.y) * 0.707 + timePhase;
@@ -92,12 +111,14 @@ void main() {
   float tReal = realPart * 0.5 + 0.5;
   float tImag = imagPart * 0.5 + 0.5;
 
-  vec3 col = mix(u_colorA, u_colorB, tHeight);
-  col = mix(col, u_colorC, tPhase * 0.65 + tReal * 0.2 + tImag * 0.15);
+  float tBlend = clamp(tHeight * 0.62 + tPhase * 0.28 + tReal * 0.05 + tImag * 0.05, 0.0, 1.0);
+  vec3 col = sampleGradient(tBlend);
 
+  vec3 stopLo = u_stops[0];
+  vec3 stopHi = u_stops[max(u_stopCount - 1, 0)];
   float ripple = 0.04 * sin(p.x * 12.0 * u_kxScale + u_time * 2.0)
                * sin(p.y * 12.0 * u_kyScale - u_time * 1.5);
-  col += ripple * (u_colorC - u_colorA);
+  col += ripple * (stopHi - stopLo);
 
   float vig = 1.0 - 0.22 * length(p) / 2.8;
   float grain = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) * 0.03;
@@ -111,7 +132,8 @@ export type WaveShaderState = {
   freq: number;
   harmonics: number;
   amplitude: number;
-  colors: { a: Rgb; b: Rgb; c: Rgb };
+  stops: Rgb[];
+  gradientMirror: boolean;
   view: WaveViewTransform;
 };
 
@@ -158,6 +180,8 @@ function getWebGL2(canvas: HTMLCanvasElement): WebGL2RenderingContext {
   return ctx;
 }
 
+const stopsFlat = new Float32Array(MAX_GRADIENT_STOPS * 3);
+
 export function createWaveShader(container: HTMLElement): WaveShader {
   const canvas = document.createElement("canvas");
   canvas.className = "wave-canvas";
@@ -176,9 +200,9 @@ export function createWaveShader(container: HTMLElement): WaveShader {
   const uRes = gl.getUniformLocation(program, "u_resolution")!;
   const uTime = gl.getUniformLocation(program, "u_time")!;
   const uTheta = gl.getUniformLocation(program, "u_theta")!;
-  const uColorA = gl.getUniformLocation(program, "u_colorA")!;
-  const uColorB = gl.getUniformLocation(program, "u_colorB")!;
-  const uColorC = gl.getUniformLocation(program, "u_colorC")!;
+  const uStops = gl.getUniformLocation(program, "u_stops")!;
+  const uStopCount = gl.getUniformLocation(program, "u_stopCount")!;
+  const uGradientMirror = gl.getUniformLocation(program, "u_gradientMirror")!;
   const uSpeed = gl.getUniformLocation(program, "u_speed")!;
   const uFreq = gl.getUniformLocation(program, "u_freq")!;
   const uHarmonics = gl.getUniformLocation(program, "u_harmonics")!;
@@ -194,17 +218,20 @@ export function createWaveShader(container: HTMLElement): WaveShader {
   gl.bindBuffer(gl.ARRAY_BUFFER, quad);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
 
+  const defaultStops: Rgb[] = [
+    [0.04, 0.06, 0.12],
+    [0.25, 0.65, 0.98],
+    [0.95, 0.45, 0.72],
+  ];
+
   const state: WaveShaderState = {
     theta: 0,
     speed: 1,
     freq: 2.2,
     harmonics: 4,
     amplitude: 1.15,
-    colors: {
-      a: [0.04, 0.06, 0.12],
-      b: [0.25, 0.65, 0.98],
-      c: [0.95, 0.45, 0.72],
-    },
+    stops: defaultStops.map((s) => [...s] as Rgb),
+    gradientMirror: false,
     view: {
       translateX: 0,
       translateY: 0,
@@ -216,15 +243,27 @@ export function createWaveShader(container: HTMLElement): WaveShader {
     },
   };
 
+  function uploadStops() {
+    const n = Math.min(state.stops.length, MAX_GRADIENT_STOPS);
+    const fallback = state.stops[n - 1] ?? state.stops[0] ?? [0, 0, 0];
+    for (let i = 0; i < MAX_GRADIENT_STOPS; i++) {
+      const c = state.stops[i] ?? fallback;
+      stopsFlat[i * 3] = c[0];
+      stopsFlat[i * 3 + 1] = c[1];
+      stopsFlat[i * 3 + 2] = c[2];
+    }
+    gl.uniform3fv(uStops, stopsFlat);
+    gl.uniform1i(uStopCount, n);
+    gl.uniform1f(uGradientMirror, state.gradientMirror ? 1 : 0);
+  }
+
   function uploadUniforms(timeSec: number) {
     const v = state.view;
     gl.useProgram(program);
     gl.uniform2f(uRes, canvas.width, canvas.height);
     gl.uniform1f(uTime, timeSec);
     gl.uniform1f(uTheta, state.theta);
-    gl.uniform3fv(uColorA, state.colors.a);
-    gl.uniform3fv(uColorB, state.colors.b);
-    gl.uniform3fv(uColorC, state.colors.c);
+    uploadStops();
     gl.uniform1f(uSpeed, state.speed);
     gl.uniform1f(uFreq, state.freq);
     gl.uniform1f(uHarmonics, state.harmonics);
@@ -270,16 +309,12 @@ export function createWaveShader(container: HTMLElement): WaveShader {
     canvas,
     setState(partial) {
       Object.assign(state, partial);
-      if (partial.colors) state.colors = { ...state.colors, ...partial.colors };
+      if (partial.stops) state.stops = partial.stops.map((s) => [...s] as Rgb);
       if (partial.view) state.view = { ...state.view, ...partial.view };
     },
     getState: () => ({
       ...state,
-      colors: {
-        a: [...state.colors.a] as Rgb,
-        b: [...state.colors.b] as Rgb,
-        c: [...state.colors.c] as Rgb,
-      },
+      stops: state.stops.map((s) => [...s] as Rgb),
       view: { ...state.view },
     }),
     resize,

@@ -320,32 +320,90 @@ button.active {
   color: var(--accent-2);
 }
 
-.color-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+.gradient-preview {
+  height: 1.25rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  margin-bottom: 0.65rem;
 }
 
-.color-field {
+.gradient-stops-list {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+  max-height: 14rem;
+  overflow-y: auto;
 }
 
-.color-field label {
+.gradient-stop-row {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr auto;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+}
+
+.gradient-stop-row .stop-index {
+  font-family: var(--mono);
   font-size: 0.7rem;
+  color: var(--text);
+  text-align: center;
+}
+
+.gradient-stop-row label {
+  font-size: 0.75rem;
   color: var(--text);
 }
 
-.color-field input[type="color"] {
-  width: 100%;
-  height: 2.25rem;
-  padding: 0.15rem;
+.gradient-stop-row input[type="color"] {
+  width: 2.5rem;
+  height: 1.75rem;
+  padding: 0.1rem;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 5px;
   background: transparent;
   cursor: pointer;
+}
+
+.gradient-stops-controls {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.gradient-stops-controls button {
+  flex: 1;
+  font-size: 0.78rem;
+  padding: 0.4rem 0.5rem;
+}
+
+.gradient-stops-controls button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text);
+  cursor: pointer;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.checkbox-field input[type="checkbox"] {
+  margin-top: 0.15rem;
+  accent-color: var(--accent-2);
+  cursor: pointer;
+}
+
+.checkbox-field span {
+  line-height: 1.35;
 }
 
 .slider-field {

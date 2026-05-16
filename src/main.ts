@@ -2,14 +2,14 @@ import "./style.css";
 import { drawArgand } from "./argand.ts";
 import { createScene3D } from "./scene3d.ts";
 import { createWaveShader } from "./waveShader.ts";
+import { createGradientStopsUI } from "./waveGradient.ts";
 import { bindWaveGestures, createWaveViewHandlers, type WaveViewSliders } from "./waveView.ts";
-import { hexToRgb, rgbToHex, WAVE_PRESETS, type WavePreset } from "./wavePresets.ts";
+import { WAVE_PRESETS, type WavePreset } from "./wavePresets.ts";
 
 const TAU = Math.PI * 2;
 const ARGAND_SIZE = 320;
 
 type AppMode = "explore" | "wave";
-type ColorKey = "a" | "b" | "c";
 
 function formatTheta(theta: number): string {
   const deg = ((theta * 180) / Math.PI).toFixed(1);
@@ -204,27 +204,6 @@ const presetLabel = document.createElement("label");
 presetLabel.textContent = "Presets";
 presetLabel.className = "section-label";
 
-const colorGrid = document.createElement("div");
-colorGrid.className = "color-grid";
-const colorPickers: Record<ColorKey, HTMLInputElement> = {
-  a: document.createElement("input"),
-  b: document.createElement("input"),
-  c: document.createElement("input"),
-};
-
-for (const key of ["a", "b", "c"] as ColorKey[]) {
-  const row = document.createElement("div");
-  row.className = "color-field";
-  const lbl = document.createElement("label");
-  lbl.htmlFor = `color-${key}`;
-  lbl.textContent = key === "a" ? "Deep" : key === "b" ? "Mid" : "Peak";
-  const input = colorPickers[key];
-  input.type = "color";
-  input.id = `color-${key}`;
-  row.append(lbl, input);
-  colorGrid.append(row);
-}
-
 function waveSlider(
   id: string,
   label: string,
@@ -250,7 +229,22 @@ function waveSlider(
   return input;
 }
 
-wavePanel.append(presetLabel, presetRow, colorGrid);
+wavePanel.append(presetLabel, presetRow);
+
+let activePresetId = "euler";
+let pushWaveUniforms: () => void = () => {};
+
+function clearActivePreset() {
+  activePresetId = "";
+  for (const btn of presetRow.querySelectorAll(".preset-btn")) {
+    btn.classList.remove("active");
+  }
+}
+
+const gradientUI = createGradientStopsUI(wavePanel, () => {
+  clearActivePreset();
+  pushWaveUniforms();
+});
 
 const speedSlider = waveSlider("wave-speed", "Speed ω", 0.2, 2.5, 0.05, 1);
 const freqSlider = waveSlider("wave-freq", "Frequency k", 0.5, 5, 0.1, 2.2);
@@ -326,7 +320,6 @@ app.append(viewport, sidebar);
 const explorePanelEl = explorePanel;
 
 // Preset buttons
-let activePresetId = "euler";
 for (const preset of WAVE_PRESETS) {
   const btn = document.createElement("button");
   btn.type = "button";
@@ -350,24 +343,16 @@ let helixOn = true;
 let lastTime = 0;
 let startTime = performance.now();
 
-function syncColorPickers() {
-  const { colors } = wave.getState();
-  colorPickers.a.value = rgbToHex(colors.a);
-  colorPickers.b.value = rgbToHex(colors.b);
-  colorPickers.c.value = rgbToHex(colors.c);
-}
-
 function applyPreset(preset: WavePreset) {
   activePresetId = preset.id;
   for (const btn of presetRow.querySelectorAll<HTMLButtonElement>(".preset-btn")) {
     btn.classList.toggle("active", btn.dataset.preset === preset.id);
   }
+  gradientUI.setStops(
+    preset.stops.map((s) => [...s] as (typeof preset.stops)[0]),
+    preset.mirror ?? false,
+  );
   wave.setState({
-    colors: {
-      a: [...preset.palette.a],
-      b: [...preset.palette.b],
-      c: [...preset.palette.c],
-    },
     speed: preset.speed,
     freq: preset.freq,
     harmonics: preset.harmonics,
@@ -375,10 +360,8 @@ function applyPreset(preset: WavePreset) {
   speedSlider.value = String(preset.speed);
   freqSlider.value = String(preset.freq);
   harmSlider.value = String(preset.harmonics);
-  syncColorPickers();
+  pushWaveUniforms();
 }
-
-let pushWaveUniforms: () => void;
 
 const waveView = createWaveViewHandlers(viewSliders, () => pushWaveUniforms());
 
@@ -389,11 +372,8 @@ pushWaveUniforms = () => {
     freq: Number(freqSlider.value),
     harmonics: Number(harmSlider.value),
     amplitude: Number(ampSlider.value),
-    colors: {
-      a: hexToRgb(colorPickers.a.value),
-      b: hexToRgb(colorPickers.b.value),
-      c: hexToRgb(colorPickers.c.value),
-    },
+    stops: gradientUI.getStops(),
+    gradientMirror: gradientUI.getMirror(),
     view: waveView.getTransform(),
   });
 };
@@ -515,16 +495,6 @@ helixBtn.addEventListener("click", () => {
   helixBtn.classList.toggle("active", helixOn);
   scene.setShowHelix(helixOn);
 });
-
-for (const key of ["a", "b", "c"] as ColorKey[]) {
-  colorPickers[key].addEventListener("input", () => {
-    activePresetId = "";
-    for (const btn of presetRow.querySelectorAll(".preset-btn")) {
-      btn.classList.remove("active");
-    }
-    pushWaveUniforms();
-  });
-}
 
 for (const slider of [speedSlider, freqSlider, harmSlider, ampSlider]) {
   slider.addEventListener("input", pushWaveUniforms);
