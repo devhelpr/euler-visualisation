@@ -3,6 +3,7 @@ import { drawArgand } from "./argand.ts";
 import { createScene3D } from "./scene3d.ts";
 import { createWaveShader } from "./waveShader.ts";
 import { createGradientStopsUI } from "./waveGradient.ts";
+import { WAVE_TEXT_SETTINGS } from "./waveTextSettings.ts";
 import { bindWaveGestures, createWaveViewHandlers, type WaveViewSliders } from "./waveView.ts";
 import { parsePresetStops, WAVE_PRESETS, type WavePreset } from "./wavePresets.ts";
 
@@ -267,7 +268,7 @@ textEnabledLabel.className = "checkbox-field";
 const textEnabledInput = document.createElement("input");
 textEnabledInput.type = "checkbox";
 textEnabledInput.id = "wave-text-enabled";
-textEnabledInput.checked = true;
+textEnabledInput.checked = WAVE_TEXT_SETTINGS.enabled;
 textEnabledLabel.append(
   textEnabledInput,
   Object.assign(document.createElement("span"), {
@@ -283,8 +284,8 @@ textInputLabel.textContent = "Text";
 const textInput = document.createElement("input");
 textInput.type = "text";
 textInput.id = "wave-text-input";
-textInput.value = "Euler";
-textInput.maxLength = 36;
+textInput.value = WAVE_TEXT_SETTINGS.text;
+textInput.maxLength = WAVE_TEXT_SETTINGS.maxLength;
 textField.append(textInputLabel, textInput);
 
 const fontField = document.createElement("div");
@@ -294,16 +295,11 @@ fontSelectLabel.htmlFor = "wave-text-font";
 fontSelectLabel.textContent = "Font";
 const fontSelect = document.createElement("select");
 fontSelect.id = "wave-text-font";
-for (const [label, value] of [
-  ["System UI", "system-ui, 'Segoe UI', Roboto, sans-serif"],
-  ["Mono", "ui-monospace, 'SF Mono', Consolas, monospace"],
-  ["Georgia", "Georgia, serif"],
-  ["Impact", "Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif"],
-  ["Trebuchet", "'Trebuchet MS', system-ui, sans-serif"],
-]) {
+for (const { label, value } of WAVE_TEXT_SETTINGS.fonts) {
   const option = document.createElement("option");
   option.value = value;
   option.textContent = label;
+  option.selected = value === WAVE_TEXT_SETTINGS.font;
   fontSelect.append(option);
 }
 fontField.append(fontSelectLabel, fontSelect);
@@ -346,18 +342,43 @@ function colorInput(id: string, label: string, value: string): HTMLInputElement 
   return input;
 }
 
-const textSizeSlider = textSlider("wave-text-size", "Size", 12, 34, 0.5, 22);
-const textWeightSlider = textSlider("wave-text-weight", "Weight", 300, 900, 100, 800);
-const textTrackingSlider = textSlider("wave-text-tracking", "Tracking", -0.04, 0.24, 0.005, 0.02);
-const textFillOpacitySlider = textSlider("wave-text-fill-opacity", "Fill opacity", 0, 1, 0.01, 1);
-const textFillTintInput = colorInput("wave-text-fill-tint", "Fill tint", "#ffffff");
+const textSizeSlider = textSlider("wave-text-size", "Size", 12, 34, 0.5, WAVE_TEXT_SETTINGS.size);
+const textWeightSlider = textSlider(
+  "wave-text-weight",
+  "Weight",
+  300,
+  900,
+  100,
+  WAVE_TEXT_SETTINGS.weight,
+);
+const textTrackingSlider = textSlider(
+  "wave-text-tracking",
+  "Tracking",
+  -0.04,
+  0.24,
+  0.005,
+  WAVE_TEXT_SETTINGS.tracking,
+);
+const textFillOpacitySlider = textSlider(
+  "wave-text-fill-opacity",
+  "Fill opacity",
+  0,
+  1,
+  0.01,
+  WAVE_TEXT_SETTINGS.fill.opacity,
+);
+const textFillTintInput = colorInput(
+  "wave-text-fill-tint",
+  "Fill tint",
+  WAVE_TEXT_SETTINGS.fill.tint,
+);
 const textFillTintSlider = textSlider(
   "wave-text-fill-tint-amount",
   "Fill tint amount",
   0,
   1,
   0.01,
-  0,
+  WAVE_TEXT_SETTINGS.fill.tintAmount,
 );
 const textFillBrightnessSlider = textSlider(
   "wave-text-fill-brightness",
@@ -365,7 +386,7 @@ const textFillBrightnessSlider = textSlider(
   0.35,
   2,
   0.01,
-  1,
+  WAVE_TEXT_SETTINGS.fill.brightness,
 );
 const textFillSaturationSlider = textSlider(
   "wave-text-fill-saturation",
@@ -373,16 +394,23 @@ const textFillSaturationSlider = textSlider(
   0,
   2.5,
   0.01,
-  1,
+  WAVE_TEXT_SETTINGS.fill.saturation,
 );
-const textStrokeSlider = textSlider("wave-text-stroke", "Stroke", 0, 0.12, 0.005, 0.035);
+const textStrokeSlider = textSlider(
+  "wave-text-stroke",
+  "Stroke",
+  0,
+  0.12,
+  0.005,
+  WAVE_TEXT_SETTINGS.stroke.width,
+);
 const textStrokeOffsetSlider = textSlider(
   "wave-text-stroke-offset",
   "Stroke wave offset",
   0,
   0.18,
   0.005,
-  0.045,
+  WAVE_TEXT_SETTINGS.stroke.waveOffset,
 );
 const textStrokeOpacitySlider = textSlider(
   "wave-text-stroke-opacity",
@@ -390,16 +418,20 @@ const textStrokeOpacitySlider = textSlider(
   0,
   1,
   0.01,
-  1,
+  WAVE_TEXT_SETTINGS.stroke.opacity,
 );
-const textStrokeTintInput = colorInput("wave-text-stroke-tint", "Stroke tint", "#ffffff");
+const textStrokeTintInput = colorInput(
+  "wave-text-stroke-tint",
+  "Stroke tint",
+  WAVE_TEXT_SETTINGS.stroke.tint,
+);
 const textStrokeTintSlider = textSlider(
   "wave-text-stroke-tint-amount",
   "Stroke tint amount",
   0,
   1,
   0.01,
-  0,
+  WAVE_TEXT_SETTINGS.stroke.tintAmount,
 );
 const textStrokeBrightnessSlider = textSlider(
   "wave-text-stroke-brightness",
@@ -407,7 +439,7 @@ const textStrokeBrightnessSlider = textSlider(
   0.35,
   2,
   0.01,
-  1.25,
+  WAVE_TEXT_SETTINGS.stroke.brightness,
 );
 const textStrokeSaturationSlider = textSlider(
   "wave-text-stroke-saturation",
@@ -415,7 +447,7 @@ const textStrokeSaturationSlider = textSlider(
   0,
   2.5,
   0.01,
-  1.15,
+  WAVE_TEXT_SETTINGS.stroke.saturation,
 );
 
 const textStyleRow = document.createElement("div");
@@ -425,13 +457,14 @@ const textUpperLabel = document.createElement("label");
 textUpperLabel.className = "checkbox-field inline";
 const textUpperInput = document.createElement("input");
 textUpperInput.type = "checkbox";
-textUpperInput.checked = true;
+textUpperInput.checked = WAVE_TEXT_SETTINGS.uppercase;
 textUpperLabel.append(textUpperInput, document.createTextNode("Uppercase"));
 
 const textItalicLabel = document.createElement("label");
 textItalicLabel.className = "checkbox-field inline";
 const textItalicInput = document.createElement("input");
 textItalicInput.type = "checkbox";
+textItalicInput.checked = WAVE_TEXT_SETTINGS.italic;
 textItalicLabel.append(textItalicInput, document.createTextNode("Italic"));
 
 textStyleRow.append(textUpperLabel, textItalicLabel);
@@ -692,7 +725,7 @@ function renderWaveText(now: number, force = false) {
   waveTextDirty = false;
 
   const scale = width / Math.max(rect.width, 1);
-  const rawText = textInput.value.trim() || "Euler";
+  const rawText = textInput.value.trim() || WAVE_TEXT_SETTINGS.text;
   const text = textUpperInput.checked ? rawText.toUpperCase() : rawText;
   const minViewport = Math.min(rect.width, rect.height);
   let fontSize = (Number(textSizeSlider.value) / 100) * minViewport * scale;
