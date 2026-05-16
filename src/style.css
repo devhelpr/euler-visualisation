@@ -1,0 +1,245 @@
+:root {
+  --bg: #0a0b10;
+  --panel: #12141c;
+  --border: #2a2d3a;
+  --text: #9ca3af;
+  --text-h: #f3f4f6;
+  --accent: #60a5fa;
+  --accent-2: #f472b6;
+  --real: #34d399;
+  --imag: #fbbf24;
+  --circle: #818cf8;
+  --mono: ui-monospace, "SF Mono", Consolas, monospace;
+  --sans: system-ui, "Segoe UI", Roboto, sans-serif;
+
+  font: 15px/1.5 var(--sans);
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+}
+
+#app {
+  display: grid;
+  grid-template-columns: 1fr min(380px, 38vw);
+  width: 100vw;
+  height: 100svh;
+}
+
+.viewport {
+  position: relative;
+  min-height: 0;
+  background: radial-gradient(ellipse at 30% 20%, #141828 0%, var(--bg) 55%);
+}
+
+.viewport canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-left: 1px solid var(--border);
+  background: var(--panel);
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.panel {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.panel h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--text-h);
+  letter-spacing: -0.02em;
+}
+
+.panel .subtitle {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.formula {
+  font-family: var(--mono);
+  font-size: 1.1rem;
+  color: var(--text-h);
+  padding: 0.75rem 1rem;
+  background: rgba(96, 165, 250, 0.08);
+  border: 1px solid rgba(96, 165, 250, 0.25);
+  border-radius: 8px;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.formula .highlight {
+  color: var(--accent);
+}
+
+.identity {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  text-align: center;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition:
+    background 0.3s,
+    color 0.3s;
+}
+
+.identity.active {
+  background: rgba(52, 211, 153, 0.15);
+  color: var(--real);
+  border: 1px solid rgba(52, 211, 153, 0.4);
+}
+
+.values {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.value-card {
+  padding: 0.5rem 0.65rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+}
+
+.value-card .label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.15rem;
+}
+
+.value-card.real .label {
+  color: var(--real);
+}
+
+.value-card.imag .label {
+  color: var(--imag);
+}
+
+.value-card .num {
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  color: var(--text-h);
+}
+
+.argand-wrap {
+  padding: 0.75rem 1.5rem 1rem;
+}
+
+.argand-wrap h2 {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text);
+}
+
+#argand {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #0d0e14;
+}
+
+.controls label {
+  display: block;
+  font-size: 0.8rem;
+  margin-bottom: 0.35rem;
+  color: var(--text);
+}
+
+.controls input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+  margin-bottom: 0.25rem;
+}
+
+.theta-display {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  color: var(--accent);
+  margin-bottom: 1rem;
+}
+
+.btn-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+button {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-h);
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}
+
+button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--accent);
+}
+
+button.primary {
+  background: rgba(96, 165, 250, 0.2);
+  border-color: rgba(96, 165, 250, 0.5);
+  color: var(--accent);
+}
+
+button.active {
+  background: rgba(96, 165, 250, 0.35);
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: var(--text);
+  margin-top: 0.75rem;
+  opacity: 0.85;
+}
+
+@media (max-width: 900px) {
+  #app {
+    grid-template-columns: 1fr;
+    grid-template-rows: 55svh 1fr;
+  }
+
+  .sidebar {
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+}
