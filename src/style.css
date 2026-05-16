@@ -71,6 +71,71 @@ body {
   background: #05060a;
 }
 
+.viewport.text-mask-active {
+  background: #000;
+}
+
+.viewport.text-mask-active .wave-canvas {
+  opacity: 0;
+}
+
+.wave-text-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.wave-text-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, var(--text-backdrop, 0.38));
+}
+
+.wave-text-preview {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.wave-text-stroke-preview {
+  filter: brightness(1.25) saturate(1.15);
+}
+
+.wave-text-dom {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 88%;
+  max-width: 88%;
+  color: transparent;
+  font-size: 22vmin;
+  font-weight: 800;
+  line-height: 0.88;
+  text-align: center;
+  overflow-wrap: anywhere;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(
+      0 0 calc(1.1rem * var(--text-glow, 0.35))
+        rgb(96 165 250 / calc(0.72 * var(--text-outline-opacity, 0.55)))
+    )
+    drop-shadow(
+      0 0 calc(2.8rem * var(--text-glow, 0.35))
+        rgb(244 114 182 / calc(0.55 * var(--text-outline-opacity, 0.55)))
+    );
+  -webkit-text-stroke: var(--text-stroke, 0.035em)
+    rgb(255 255 255 / var(--text-outline-opacity, 0.55));
+  -webkit-text-fill-color: transparent;
+  text-shadow:
+    0 1px 0 rgb(255 255 255 / calc(0.3 * var(--text-outline-opacity, 0.55))),
+    0 0 1.8rem rgb(255 255 255 / calc(0.2 * var(--text-outline-opacity, 0.55)));
+}
+
 .mode-bar {
   position: absolute;
   top: 1rem;
@@ -504,6 +569,15 @@ button.active {
   line-height: 1.35;
 }
 
+.checkbox-field.inline {
+  align-items: center;
+  margin: 0;
+}
+
+.checkbox-field.inline input[type="checkbox"] {
+  margin-top: 0;
+}
+
 .slider-field {
   margin-top: 0.65rem;
 }
@@ -518,6 +592,60 @@ button.active {
 .slider-field input[type="range"] {
   width: 100%;
   accent-color: var(--accent-2);
+}
+
+.slider-field.compact {
+  margin-top: 0.45rem;
+}
+
+.text-controls {
+  padding: 0.4rem 0 0.2rem;
+}
+
+.text-controls .section-label {
+  margin-top: 0.9rem;
+}
+
+.text-controls.text-disabled .text-field,
+.text-controls.text-disabled .slider-field,
+.text-controls.text-disabled .toggle-row {
+  opacity: 0.46;
+}
+
+.text-field {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 0.55rem;
+}
+
+.text-field label {
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
+.text-field input,
+.text-field select {
+  width: 100%;
+  min-height: 2.15rem;
+  padding: 0.42rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text-h);
+  font: inherit;
+}
+
+.text-field input:focus,
+.text-field select:focus {
+  outline: 2px solid rgba(244, 114, 182, 0.55);
+  outline-offset: 1px;
+}
+
+.toggle-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-top: 0.55rem;
 }
 
 .reset-view-btn {

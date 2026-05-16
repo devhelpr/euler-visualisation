@@ -48,6 +48,25 @@ waveModeBtn.textContent = "Wave Preview";
 modeBar.append(exploreModeBtn, waveModeBtn);
 viewport.append(modeBar);
 
+const waveTextOverlay = document.createElement("div");
+waveTextOverlay.className = "wave-text-overlay hidden";
+
+const waveTextBackdrop = document.createElement("div");
+waveTextBackdrop.className = "wave-text-backdrop";
+
+const waveTextCanvas = document.createElement("canvas");
+waveTextCanvas.className = "wave-text-preview";
+
+const waveTextStrokeCanvas = document.createElement("canvas");
+waveTextStrokeCanvas.className = "wave-text-preview wave-text-stroke-preview";
+
+const waveTextDom = document.createElement("div");
+waveTextDom.className = "wave-text-dom";
+waveTextDom.textContent = "EULER";
+
+waveTextOverlay.append(waveTextBackdrop, waveTextStrokeCanvas, waveTextCanvas, waveTextDom);
+viewport.append(waveTextOverlay);
+
 // Sidebar
 const sidebar = document.createElement("aside");
 sidebar.className = "sidebar";
@@ -246,6 +265,141 @@ const gradientUI = createGradientStopsUI(wavePanel, () => {
   pushWaveUniforms();
 });
 
+const textLabel = document.createElement("label");
+textLabel.className = "section-label";
+textLabel.textContent = "Text mask";
+
+const textEnabledLabel = document.createElement("label");
+textEnabledLabel.className = "checkbox-field";
+const textEnabledInput = document.createElement("input");
+textEnabledInput.type = "checkbox";
+textEnabledInput.id = "wave-text-enabled";
+textEnabledInput.checked = true;
+textEnabledLabel.append(
+  textEnabledInput,
+  Object.assign(document.createElement("span"), {
+    textContent: "Show text with the wave as its moving backdrop",
+  }),
+);
+
+const textField = document.createElement("div");
+textField.className = "text-field";
+const textInputLabel = document.createElement("label");
+textInputLabel.htmlFor = "wave-text-input";
+textInputLabel.textContent = "Text";
+const textInput = document.createElement("input");
+textInput.type = "text";
+textInput.id = "wave-text-input";
+textInput.value = "Euler";
+textInput.maxLength = 36;
+textField.append(textInputLabel, textInput);
+
+const fontField = document.createElement("div");
+fontField.className = "text-field";
+const fontSelectLabel = document.createElement("label");
+fontSelectLabel.htmlFor = "wave-text-font";
+fontSelectLabel.textContent = "Font";
+const fontSelect = document.createElement("select");
+fontSelect.id = "wave-text-font";
+for (const [label, value] of [
+  ["System UI", "system-ui, 'Segoe UI', Roboto, sans-serif"],
+  ["Mono", "ui-monospace, 'SF Mono', Consolas, monospace"],
+  ["Georgia", "Georgia, serif"],
+  ["Impact", "Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif"],
+  ["Trebuchet", "'Trebuchet MS', system-ui, sans-serif"],
+]) {
+  const option = document.createElement("option");
+  option.value = value;
+  option.textContent = label;
+  fontSelect.append(option);
+}
+fontField.append(fontSelectLabel, fontSelect);
+
+function textSlider(
+  id: string,
+  label: string,
+  min: number,
+  max: number,
+  step: number,
+  value: number,
+): HTMLInputElement {
+  const wrap = document.createElement("div");
+  wrap.className = "slider-field compact";
+  const lbl = document.createElement("label");
+  lbl.htmlFor = id;
+  lbl.textContent = label;
+  const input = document.createElement("input");
+  input.type = "range";
+  input.id = id;
+  input.min = String(min);
+  input.max = String(max);
+  input.step = String(step);
+  input.value = String(value);
+  wrap.append(lbl, input);
+  return input;
+}
+
+const textSizeSlider = textSlider("wave-text-size", "Size", 12, 34, 0.5, 22);
+const textWeightSlider = textSlider("wave-text-weight", "Weight", 300, 900, 100, 800);
+const textTrackingSlider = textSlider("wave-text-tracking", "Tracking", -0.04, 0.24, 0.005, 0.02);
+const textGlowSlider = textSlider("wave-text-glow", "Glow", 0, 1, 0.01, 0.35);
+const textBackdropSlider = textSlider("wave-text-backdrop", "Outside dim", 0, 0.85, 0.01, 0.38);
+const textStrokeSlider = textSlider("wave-text-stroke", "Stroke", 0, 0.12, 0.005, 0.035);
+const textStrokeOffsetSlider = textSlider(
+  "wave-text-stroke-offset",
+  "Stroke wave offset",
+  0,
+  0.18,
+  0.005,
+  0.045,
+);
+const textOutlineOpacitySlider = textSlider(
+  "wave-text-outline-opacity",
+  "Outline opacity",
+  0,
+  1,
+  0.01,
+  0.55,
+);
+
+const textStyleRow = document.createElement("div");
+textStyleRow.className = "toggle-row";
+
+const textUpperLabel = document.createElement("label");
+textUpperLabel.className = "checkbox-field inline";
+const textUpperInput = document.createElement("input");
+textUpperInput.type = "checkbox";
+textUpperInput.checked = true;
+textUpperLabel.append(textUpperInput, document.createTextNode("Uppercase"));
+
+const textItalicLabel = document.createElement("label");
+textItalicLabel.className = "checkbox-field inline";
+const textItalicInput = document.createElement("input");
+textItalicInput.type = "checkbox";
+textItalicLabel.append(textItalicInput, document.createTextNode("Italic"));
+
+textStyleRow.append(textUpperLabel, textItalicLabel);
+
+const textControls = document.createElement("div");
+textControls.className = "text-controls";
+textControls.append(
+  textLabel,
+  textEnabledLabel,
+  textField,
+  fontField,
+  textSizeSlider.parentElement!,
+  textWeightSlider.parentElement!,
+  textTrackingSlider.parentElement!,
+  textGlowSlider.parentElement!,
+  textBackdropSlider.parentElement!,
+  textStrokeSlider.parentElement!,
+  textStrokeOffsetSlider.parentElement!,
+  textOutlineOpacitySlider.parentElement!,
+  textStyleRow,
+);
+
+wavePanel.append(textControls);
+
 const speedSlider = waveSlider("wave-speed", "Wave speed ω", 0, 2.5, 0.01, 1);
 const rippleSlider = waveSlider("wave-ripple", "Ripple shimmer", 0, 0.12, 0.005, 0.04);
 const freqSlider = waveSlider("wave-freq", "Frequency k", 0.5, 5, 0.1, 2.2);
@@ -342,6 +496,8 @@ let playing = false;
 let wavePlaying = false;
 let helixOn = true;
 let lastTime = 0;
+let lastWaveTextRender = 0;
+let waveTextDirty = true;
 let startTime = performance.now();
 
 function applyPreset(preset: WavePreset) {
@@ -378,6 +534,134 @@ pushWaveUniforms = () => {
 };
 
 bindWaveGestures(wave.canvas, waveView, () => mode === "wave");
+
+function updateWaveText() {
+  const rawText = textInput.value.trim() || "Euler";
+  waveTextDom.textContent = textUpperInput.checked ? rawText.toUpperCase() : rawText;
+  waveTextDom.style.fontFamily = fontSelect.value;
+  waveTextDom.style.fontSize = `${textSizeSlider.value}vmin`;
+  waveTextDom.style.fontWeight = textWeightSlider.value;
+  waveTextDom.style.fontStyle = textItalicInput.checked ? "italic" : "normal";
+  waveTextDom.style.letterSpacing = `${textTrackingSlider.value}em`;
+  waveTextDom.style.setProperty("--text-glow", textGlowSlider.value);
+  waveTextDom.style.setProperty("--text-stroke", `${textStrokeSlider.value}em`);
+  waveTextDom.style.setProperty("--text-outline-opacity", textOutlineOpacitySlider.value);
+  waveTextBackdrop.style.setProperty("--text-backdrop", textBackdropSlider.value);
+  waveTextOverlay.classList.toggle("hidden", mode !== "wave" || !textEnabledInput.checked);
+  viewport.classList.toggle("text-mask-active", mode === "wave" && textEnabledInput.checked);
+  textControls.classList.toggle("text-disabled", !textEnabledInput.checked);
+  waveTextDirty = true;
+  renderWaveText(performance.now(), true);
+}
+
+function resizeCanvasToViewport(canvas: HTMLCanvasElement, width: number, height: number) {
+  const scale = Math.min(window.devicePixelRatio || 1, 2);
+  const pixelWidth = Math.max(1, Math.floor(width * scale));
+  const pixelHeight = Math.max(1, Math.floor(height * scale));
+  if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+    canvas.width = pixelWidth;
+    canvas.height = pixelHeight;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+  }
+}
+
+function drawTrackedText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  tracking: number,
+  mode: "fill" | "stroke",
+) {
+  const chars = Array.from(text);
+  const widths = chars.map((char) => ctx.measureText(char).width);
+  const totalWidth = widths.reduce((sum, width) => sum + width, 0) + tracking * (chars.length - 1);
+  let cursor = x - totalWidth / 2;
+  for (let i = 0; i < chars.length; i++) {
+    const char = chars[i]!;
+    const charX = cursor + widths[i]! / 2;
+    if (mode === "fill") {
+      ctx.fillText(char, charX, y);
+    } else {
+      ctx.strokeText(char, charX, y);
+    }
+    cursor += widths[i]! + tracking;
+  }
+}
+
+function renderWaveText(now: number, force = false) {
+  if (!force && !waveTextDirty && now - lastWaveTextRender < 42) return;
+
+  const rect = viewport.getBoundingClientRect();
+  resizeCanvasToViewport(waveTextCanvas, rect.width, rect.height);
+  resizeCanvasToViewport(waveTextStrokeCanvas, rect.width, rect.height);
+
+  const ctx = waveTextCanvas.getContext("2d");
+  const strokeCtx = waveTextStrokeCanvas.getContext("2d");
+  if (!ctx || !strokeCtx) return;
+
+  const width = waveTextCanvas.width;
+  const height = waveTextCanvas.height;
+  ctx.clearRect(0, 0, width, height);
+  strokeCtx.clearRect(0, 0, width, height);
+
+  if (mode !== "wave" || !textEnabledInput.checked) return;
+
+  lastWaveTextRender = now;
+  waveTextDirty = false;
+
+  const scale = width / Math.max(rect.width, 1);
+  const rawText = textInput.value.trim() || "Euler";
+  const text = textUpperInput.checked ? rawText.toUpperCase() : rawText;
+  const minViewport = Math.min(rect.width, rect.height);
+  let fontSize = (Number(textSizeSlider.value) / 100) * minViewport * scale;
+  let tracking = Number(textTrackingSlider.value) * fontSize;
+  const fontStyle = textItalicInput.checked ? "italic " : "";
+  const fontWeight = Math.min(
+    900,
+    Math.max(100, Math.round(Number(textWeightSlider.value) / 100) * 100),
+  );
+  const font = () => `${fontStyle}${fontWeight} ${fontSize}px ${fontSelect.value}`;
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = font();
+
+  const maxWidth = width * 0.88;
+  const measured =
+    Array.from(text).reduce((sum, char) => sum + ctx.measureText(char).width, 0) +
+    tracking * Math.max(0, Array.from(text).length - 1);
+  if (measured > maxWidth) {
+    fontSize *= maxWidth / measured;
+    tracking = Number(textTrackingSlider.value) * fontSize;
+    ctx.font = font();
+  }
+
+  const x = width / 2;
+  const y = height / 2 + fontSize * 0.03;
+  const stroke = Number(textStrokeSlider.value) * fontSize;
+  const strokeOffset = Number(textStrokeOffsetSlider.value) * fontSize;
+
+  strokeCtx.save();
+  strokeCtx.font = font();
+  strokeCtx.textAlign = "center";
+  strokeCtx.textBaseline = "middle";
+  strokeCtx.lineJoin = "round";
+  strokeCtx.lineWidth = Math.max(1, stroke * 2.2);
+  strokeCtx.strokeStyle = "#fff";
+  drawTrackedText(strokeCtx, text, x + strokeOffset, y + strokeOffset, tracking, "stroke");
+  strokeCtx.globalCompositeOperation = "source-in";
+  strokeCtx.drawImage(wave.canvas, 0, 0, width, height);
+  strokeCtx.restore();
+
+  ctx.save();
+  ctx.fillStyle = "#fff";
+  drawTrackedText(ctx, text, x, y, tracking, "fill");
+  ctx.globalCompositeOperation = "source-in";
+  ctx.drawImage(wave.canvas, 0, 0, width, height);
+  ctx.restore();
+}
 
 resetViewBtn.addEventListener("click", () => {
   waveView.setTransform({
@@ -418,9 +702,13 @@ function setMode(next: AppMode) {
   controls.classList.toggle("hidden", next === "wave");
   wavePanel.classList.toggle("hidden", next === "explore");
   waveControls.classList.toggle("hidden", next === "explore");
+  updateWaveText();
 
-  const sceneCanvas = viewport.querySelector("canvas:not(.wave-canvas)");
-  if (sceneCanvas instanceof HTMLCanvasElement) {
+  const sceneCanvas = Array.from(viewport.querySelectorAll("canvas")).find(
+    (canvas) =>
+      !canvas.classList.contains("wave-canvas") && !canvas.classList.contains("wave-text-preview"),
+  );
+  if (sceneCanvas) {
     sceneCanvas.style.display = next === "explore" ? "block" : "none";
   }
   wave.canvas.style.display = next === "wave" ? "block" : "none";
@@ -452,6 +740,7 @@ function tick(now: number) {
     scene.render();
   } else {
     wave.render(elapsed);
+    renderWaveText(now);
   }
 
   requestAnimationFrame(tick);
@@ -500,6 +789,24 @@ for (const slider of [speedSlider, rippleSlider, freqSlider, harmSlider, ampSlid
   slider.addEventListener("input", pushWaveUniforms);
 }
 
+for (const control of [
+  textEnabledInput,
+  textInput,
+  fontSelect,
+  textSizeSlider,
+  textWeightSlider,
+  textTrackingSlider,
+  textGlowSlider,
+  textBackdropSlider,
+  textStrokeSlider,
+  textStrokeOffsetSlider,
+  textOutlineOpacitySlider,
+  textUpperInput,
+  textItalicInput,
+]) {
+  control.addEventListener("input", updateWaveText);
+}
+
 presetRow.addEventListener("click", (e) => {
   const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".preset-btn");
   if (!btn?.dataset.preset) return;
@@ -510,6 +817,8 @@ presetRow.addEventListener("click", (e) => {
 window.addEventListener("resize", () => {
   scene.resize();
   wave.resize();
+  waveTextDirty = true;
+  renderWaveText(performance.now(), true);
   drawArgand(argandCtx, ARGAND_SIZE, theta);
 });
 

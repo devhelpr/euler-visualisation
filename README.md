@@ -1,13 +1,10 @@
 # Euler's Formula — Interactive Visualiser
 
-*Build with AI*
+_Build with AI_
 
 An interactive web app for exploring **Euler's formula** and the geometry of complex exponentials. Drag the angle θ, watch **e<sup>iθ</sup>** move on the unit circle, and see the same idea extended in time as a 3D helix. A second mode turns sums of rotating complex waves into full-screen gradient art via a custom WebGL shader.
 
 **Live idea:** e<sup>iθ</sup> = cos θ + i sin θ — and at θ = π, the famous identity **e<sup>iπ</sup> + 1 = 0**.
-
-
-
 
 ## Features
 
@@ -27,13 +24,13 @@ An interactive web app for exploring **Euler's formula** and the geometry of com
 
 ## Tech stack
 
-| Layer | Tools |
-|-------|--------|
-| Build | [Vite+](https://viteplus.dev/) (`vp` CLI) |
-| Language | TypeScript |
-| 3D | [Three.js](https://threejs.org/) + OrbitControls |
-| 2D / UI | Canvas API, vanilla DOM |
-| Waves | WebGL 2 fragment shader (custom GLSL) |
+| Layer    | Tools                                            |
+| -------- | ------------------------------------------------ |
+| Build    | [Vite+](https://viteplus.dev/) (`vp` CLI)        |
+| Language | TypeScript                                       |
+| 3D       | [Three.js](https://threejs.org/) + OrbitControls |
+| 2D / UI  | Canvas API, vanilla DOM                          |
+| Waves    | WebGL 2 fragment shader (custom GLSL)            |
 
 ## Getting started
 
@@ -54,7 +51,6 @@ vp preview
 ```
 
 After `vp dev`, open the URL shown in the terminal (typically `http://localhost:5173`).
-
 
 ## Project structure
 

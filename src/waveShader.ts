@@ -187,6 +187,7 @@ function getWebGL2(canvas: HTMLCanvasElement): WebGL2RenderingContext {
   const ctx = canvas.getContext("webgl2", {
     antialias: false,
     alpha: false,
+    preserveDrawingBuffer: true,
     powerPreference: "high-performance",
   });
   if (!ctx) throw new Error("WebGL2 not available");
