@@ -89,12 +89,6 @@ body {
   overflow: hidden;
 }
 
-.wave-text-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, var(--text-backdrop, 0.38));
-}
-
 .wave-text-preview {
   position: absolute;
   inset: 0;

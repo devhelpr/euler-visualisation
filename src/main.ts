@@ -51,16 +51,13 @@ viewport.append(modeBar);
 const waveTextOverlay = document.createElement("div");
 waveTextOverlay.className = "wave-text-overlay hidden";
 
-const waveTextBackdrop = document.createElement("div");
-waveTextBackdrop.className = "wave-text-backdrop";
-
 const waveTextCanvas = document.createElement("canvas");
 waveTextCanvas.className = "wave-text-preview";
 
 const waveTextStrokeCanvas = document.createElement("canvas");
 waveTextStrokeCanvas.className = "wave-text-preview wave-text-stroke-preview";
 
-waveTextOverlay.append(waveTextBackdrop, waveTextStrokeCanvas, waveTextCanvas);
+waveTextOverlay.append(waveTextStrokeCanvas, waveTextCanvas);
 viewport.append(waveTextOverlay);
 
 // Sidebar
@@ -335,10 +332,49 @@ function textSlider(
   return input;
 }
 
+function colorInput(id: string, label: string, value: string): HTMLInputElement {
+  const wrap = document.createElement("div");
+  wrap.className = "text-field color-field";
+  const lbl = document.createElement("label");
+  lbl.htmlFor = id;
+  lbl.textContent = label;
+  const input = document.createElement("input");
+  input.type = "color";
+  input.id = id;
+  input.value = value;
+  wrap.append(lbl, input);
+  return input;
+}
+
 const textSizeSlider = textSlider("wave-text-size", "Size", 12, 34, 0.5, 22);
 const textWeightSlider = textSlider("wave-text-weight", "Weight", 300, 900, 100, 800);
 const textTrackingSlider = textSlider("wave-text-tracking", "Tracking", -0.04, 0.24, 0.005, 0.02);
-const textBackdropSlider = textSlider("wave-text-backdrop", "Outside dim", 0, 0.85, 0.01, 0.38);
+const textFillOpacitySlider = textSlider("wave-text-fill-opacity", "Fill opacity", 0, 1, 0.01, 1);
+const textFillTintInput = colorInput("wave-text-fill-tint", "Fill tint", "#ffffff");
+const textFillTintSlider = textSlider(
+  "wave-text-fill-tint-amount",
+  "Fill tint amount",
+  0,
+  1,
+  0.01,
+  0,
+);
+const textFillBrightnessSlider = textSlider(
+  "wave-text-fill-brightness",
+  "Fill brightness",
+  0.35,
+  2,
+  0.01,
+  1,
+);
+const textFillSaturationSlider = textSlider(
+  "wave-text-fill-saturation",
+  "Fill saturation",
+  0,
+  2.5,
+  0.01,
+  1,
+);
 const textStrokeSlider = textSlider("wave-text-stroke", "Stroke", 0, 0.12, 0.005, 0.035);
 const textStrokeOffsetSlider = textSlider(
   "wave-text-stroke-offset",
@@ -347,6 +383,39 @@ const textStrokeOffsetSlider = textSlider(
   0.18,
   0.005,
   0.045,
+);
+const textStrokeOpacitySlider = textSlider(
+  "wave-text-stroke-opacity",
+  "Stroke opacity",
+  0,
+  1,
+  0.01,
+  1,
+);
+const textStrokeTintInput = colorInput("wave-text-stroke-tint", "Stroke tint", "#ffffff");
+const textStrokeTintSlider = textSlider(
+  "wave-text-stroke-tint-amount",
+  "Stroke tint amount",
+  0,
+  1,
+  0.01,
+  0,
+);
+const textStrokeBrightnessSlider = textSlider(
+  "wave-text-stroke-brightness",
+  "Stroke brightness",
+  0.35,
+  2,
+  0.01,
+  1.25,
+);
+const textStrokeSaturationSlider = textSlider(
+  "wave-text-stroke-saturation",
+  "Stroke saturation",
+  0,
+  2.5,
+  0.01,
+  1.15,
 );
 
 const textStyleRow = document.createElement("div");
@@ -377,9 +446,18 @@ textControls.append(
   textSizeSlider.parentElement!,
   textWeightSlider.parentElement!,
   textTrackingSlider.parentElement!,
-  textBackdropSlider.parentElement!,
+  textFillOpacitySlider.parentElement!,
+  textFillTintInput.parentElement!,
+  textFillTintSlider.parentElement!,
+  textFillBrightnessSlider.parentElement!,
+  textFillSaturationSlider.parentElement!,
   textStrokeSlider.parentElement!,
   textStrokeOffsetSlider.parentElement!,
+  textStrokeOpacitySlider.parentElement!,
+  textStrokeTintInput.parentElement!,
+  textStrokeTintSlider.parentElement!,
+  textStrokeBrightnessSlider.parentElement!,
+  textStrokeSaturationSlider.parentElement!,
   textStyleRow,
 );
 
@@ -521,9 +599,12 @@ pushWaveUniforms = () => {
 bindWaveGestures(wave.canvas, waveView, () => mode === "wave");
 
 function updateWaveText() {
-  waveTextBackdrop.style.setProperty("--text-backdrop", textBackdropSlider.value);
   waveTextOverlay.classList.toggle("hidden", mode !== "wave" || !textEnabledInput.checked);
   viewport.classList.toggle("text-mask-active", mode === "wave" && textEnabledInput.checked);
+  waveTextCanvas.style.opacity = textFillOpacitySlider.value;
+  waveTextCanvas.style.filter = `brightness(${textFillBrightnessSlider.value}) saturate(${textFillSaturationSlider.value})`;
+  waveTextStrokeCanvas.style.opacity = textStrokeOpacitySlider.value;
+  waveTextStrokeCanvas.style.filter = `brightness(${textStrokeBrightnessSlider.value}) saturate(${textStrokeSaturationSlider.value})`;
   textControls.classList.toggle("text-disabled", !textEnabledInput.checked);
   waveTextDirty = true;
   renderWaveText(performance.now(), true);
@@ -571,6 +652,22 @@ function drawWaveText(
   } else {
     ctx.strokeText(text, x, y);
   }
+}
+
+function applyLayerTint(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  color: string,
+  amount: number,
+) {
+  if (amount <= 0) return;
+  ctx.save();
+  ctx.globalCompositeOperation = "source-atop";
+  ctx.globalAlpha = amount;
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, width, height);
+  ctx.restore();
 }
 
 function renderWaveText(now: number, force = false) {
@@ -634,6 +731,13 @@ function renderWaveText(now: number, force = false) {
   drawWaveText(strokeCtx, text, x + strokeOffset, y + strokeOffset, tracking, "stroke");
   strokeCtx.globalCompositeOperation = "source-in";
   strokeCtx.drawImage(wave.canvas, 0, 0, width, height);
+  applyLayerTint(
+    strokeCtx,
+    width,
+    height,
+    textStrokeTintInput.value,
+    Number(textStrokeTintSlider.value),
+  );
   strokeCtx.restore();
 
   ctx.save();
@@ -641,6 +745,7 @@ function renderWaveText(now: number, force = false) {
   drawWaveText(ctx, text, x, y, tracking, "fill");
   ctx.globalCompositeOperation = "source-in";
   ctx.drawImage(wave.canvas, 0, 0, width, height);
+  applyLayerTint(ctx, width, height, textFillTintInput.value, Number(textFillTintSlider.value));
   ctx.restore();
 }
 
@@ -777,9 +882,18 @@ for (const control of [
   textSizeSlider,
   textWeightSlider,
   textTrackingSlider,
-  textBackdropSlider,
+  textFillOpacitySlider,
+  textFillTintInput,
+  textFillTintSlider,
+  textFillBrightnessSlider,
+  textFillSaturationSlider,
   textStrokeSlider,
   textStrokeOffsetSlider,
+  textStrokeOpacitySlider,
+  textStrokeTintInput,
+  textStrokeTintSlider,
+  textStrokeBrightnessSlider,
+  textStrokeSaturationSlider,
   textUpperInput,
   textItalicInput,
 ]) {
