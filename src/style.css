@@ -50,6 +50,58 @@ body {
   height: 100%;
 }
 
+.viewport .wave-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+
+.viewport .wave-canvas.grabbing {
+  cursor: grabbing;
+}
+
+#app[data-mode="wave"] .wave-canvas {
+  z-index: 1;
+}
+
+#app[data-mode="wave"] .viewport {
+  background: #05060a;
+}
+
+.mode-bar {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.25rem;
+  border-radius: 10px;
+  background: rgba(10, 11, 16, 0.75);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+}
+
+.mode-btn {
+  font-size: 0.8rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 7px;
+}
+
+.mode-btn.active {
+  background: rgba(96, 165, 250, 0.35);
+  border-color: rgba(96, 165, 250, 0.55);
+  color: var(--accent);
+}
+
+.hidden {
+  display: none !important;
+}
+
 .sidebar {
   display: flex;
   flex-direction: column;
@@ -230,6 +282,99 @@ button.active {
   color: var(--text);
   margin-top: 0.75rem;
   opacity: 0.85;
+}
+
+.wave-formula {
+  background: rgba(244, 114, 182, 0.08);
+  border-color: rgba(244, 114, 182, 0.3);
+}
+
+.wave-formula .highlight {
+  color: var(--accent-2);
+}
+
+.section-label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0.75rem 0 0.4rem;
+  color: var(--text);
+}
+
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.preset-btn {
+  font-size: 0.75rem;
+  padding: 0.35rem 0.6rem;
+}
+
+.preset-btn.active {
+  background: rgba(244, 114, 182, 0.25);
+  border-color: rgba(244, 114, 182, 0.5);
+  color: var(--accent-2);
+}
+
+.color-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.color-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.color-field label {
+  font-size: 0.7rem;
+  color: var(--text);
+}
+
+.color-field input[type="color"] {
+  width: 100%;
+  height: 2.25rem;
+  padding: 0.15rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.slider-field {
+  margin-top: 0.65rem;
+}
+
+.slider-field label {
+  display: block;
+  font-size: 0.8rem;
+  margin-bottom: 0.3rem;
+  color: var(--text);
+}
+
+.slider-field input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent-2);
+}
+
+.reset-view-btn {
+  width: 100%;
+  margin: 0.5rem 0 0.25rem;
+  font-size: 0.8rem;
+}
+
+.gesture-hint {
+  font-size: 0.7rem;
+  line-height: 1.45;
+  opacity: 0.8;
+  margin-top: 0.5rem;
 }
 
 @media (max-width: 900px) {

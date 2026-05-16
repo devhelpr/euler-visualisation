@@ -1,9 +1,15 @@
 import "./style.css";
 import { drawArgand } from "./argand.ts";
 import { createScene3D } from "./scene3d.ts";
+import { createWaveShader } from "./waveShader.ts";
+import { bindWaveGestures, createWaveViewHandlers, type WaveViewSliders } from "./waveView.ts";
+import { hexToRgb, rgbToHex, WAVE_PRESETS, type WavePreset } from "./wavePresets.ts";
 
 const TAU = Math.PI * 2;
 const ARGAND_SIZE = 320;
+
+type AppMode = "explore" | "wave";
+type ColorKey = "a" | "b" | "c";
 
 function formatTheta(theta: number): string {
   const deg = ((theta * 180) / Math.PI).toFixed(1);
@@ -19,15 +25,36 @@ function isEulerIdentity(theta: number): boolean {
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
+// Viewport + mode switcher
 const viewport = document.createElement("div");
 viewport.className = "viewport";
 viewport.id = "viewport";
 
+const modeBar = document.createElement("div");
+modeBar.className = "mode-bar";
+
+const exploreModeBtn = document.createElement("button");
+exploreModeBtn.type = "button";
+exploreModeBtn.className = "mode-btn active";
+exploreModeBtn.dataset.mode = "explore";
+exploreModeBtn.textContent = "Explore";
+
+const waveModeBtn = document.createElement("button");
+waveModeBtn.type = "button";
+waveModeBtn.className = "mode-btn";
+waveModeBtn.dataset.mode = "wave";
+waveModeBtn.textContent = "Wave Preview";
+
+modeBar.append(exploreModeBtn, waveModeBtn);
+viewport.append(modeBar);
+
+// Sidebar
 const sidebar = document.createElement("aside");
 sidebar.className = "sidebar";
 
-const panel = document.createElement("div");
-panel.className = "panel";
+// Explore panel
+const explorePanel = document.createElement("div");
+explorePanel.className = "panel explore-panel";
 
 const title = document.createElement("h1");
 title.textContent = "Euler's Formula";
@@ -56,42 +83,51 @@ valImag.className = "num";
 valImag.id = "val-imag";
 valImag.textContent = "0.000";
 
+const values = document.createElement("div");
+values.className = "values";
+
 const realCard = document.createElement("div");
 realCard.className = "value-card real";
-const realLabel = document.createElement("div");
-realLabel.className = "label";
-realLabel.textContent = "Re = cos θ";
-realCard.append(realLabel, valReal);
+realCard.append(
+  Object.assign(document.createElement("div"), {
+    className: "label",
+    textContent: "Re = cos θ",
+  }),
+  valReal,
+);
 
 const imagCard = document.createElement("div");
 imagCard.className = "value-card imag";
-const imagLabel = document.createElement("div");
-imagLabel.className = "label";
-imagLabel.textContent = "Im = sin θ";
-imagCard.append(imagLabel, valImag);
+imagCard.append(
+  Object.assign(document.createElement("div"), {
+    className: "label",
+    textContent: "Im = sin θ",
+  }),
+  valImag,
+);
 
-const values = document.createElement("div");
-values.className = "values";
 values.append(realCard, imagCard);
-
-panel.append(title, subtitle, formula, identity, values);
+explorePanel.append(title, subtitle, formula, identity, values);
 
 const argandWrap = document.createElement("div");
-argandWrap.className = "argand-wrap";
-const argandHeading = document.createElement("h2");
-argandHeading.textContent = "Complex plane (canvas)";
-const argandCanvas = document.createElement("canvas");
-argandCanvas.id = "argand";
-argandCanvas.width = ARGAND_SIZE;
-argandCanvas.height = ARGAND_SIZE;
-argandWrap.append(argandHeading, argandCanvas);
+argandWrap.className = "argand-wrap explore-only";
+argandWrap.append(
+  Object.assign(document.createElement("h2"), {
+    textContent: "Complex plane (canvas)",
+  }),
+  (() => {
+    const c = document.createElement("canvas");
+    c.id = "argand";
+    c.width = ARGAND_SIZE;
+    c.height = ARGAND_SIZE;
+    return c;
+  })(),
+);
+
+const argandCanvas = argandWrap.querySelector("canvas")!;
 
 const controls = document.createElement("div");
-controls.className = "panel controls";
-
-const thetaLabelEl = document.createElement("label");
-thetaLabelEl.htmlFor = "theta";
-thetaLabelEl.textContent = "Angle θ";
+controls.className = "panel controls explore-only";
 
 const thetaSlider = document.createElement("input");
 thetaSlider.type = "range";
@@ -105,9 +141,6 @@ const thetaDisplay = document.createElement("div");
 thetaDisplay.className = "theta-display";
 thetaDisplay.id = "theta-label";
 thetaDisplay.textContent = "θ = 0 (0.0°)";
-
-const btnRow = document.createElement("div");
-btnRow.className = "btn-row";
 
 const playBtn = document.createElement("button");
 playBtn.type = "button";
@@ -126,47 +159,326 @@ helixBtn.id = "helix";
 helixBtn.className = "active";
 helixBtn.textContent = "Helix";
 
+const btnRow = document.createElement("div");
+btnRow.className = "btn-row";
 btnRow.append(playBtn, piBtn, helixBtn);
 
-const hint = document.createElement("p");
-hint.className = "hint";
-hint.textContent = "Drag the 3D view to orbit. Green = real axis, gold = imaginary.";
+controls.append(
+  Object.assign(document.createElement("label"), {
+    htmlFor: "theta",
+    textContent: "Angle θ",
+  }),
+  thetaSlider,
+  thetaDisplay,
+  btnRow,
+  Object.assign(document.createElement("p"), {
+    className: "hint",
+    textContent: "Drag the 3D view to orbit. Green = real axis, gold = imaginary.",
+  }),
+);
 
-controls.append(thetaLabelEl, thetaSlider, thetaDisplay, btnRow, hint);
+// Wave panel
+const wavePanel = document.createElement("div");
+wavePanel.className = "panel wave-panel hidden";
 
-sidebar.append(panel, argandWrap, controls);
+wavePanel.append(
+  Object.assign(document.createElement("h1"), { textContent: "Euler Wave" }),
+  (() => {
+    const p = document.createElement("p");
+    p.className = "subtitle";
+    p.innerHTML =
+      "Interference from Σ e<sup>iφ</sup> — rotating complex waves blended into a gradient.";
+    return p;
+  })(),
+  (() => {
+    const d = document.createElement("div");
+    d.className = "formula wave-formula";
+    d.innerHTML = 'Σ e<sup>i(k·x − ωt + θ)</sup> → <span class="highlight">gradient</span>';
+    return d;
+  })(),
+);
+
+const presetRow = document.createElement("div");
+presetRow.className = "preset-row";
+const presetLabel = document.createElement("label");
+presetLabel.textContent = "Presets";
+presetLabel.className = "section-label";
+
+const colorGrid = document.createElement("div");
+colorGrid.className = "color-grid";
+const colorPickers: Record<ColorKey, HTMLInputElement> = {
+  a: document.createElement("input"),
+  b: document.createElement("input"),
+  c: document.createElement("input"),
+};
+
+for (const key of ["a", "b", "c"] as ColorKey[]) {
+  const row = document.createElement("div");
+  row.className = "color-field";
+  const lbl = document.createElement("label");
+  lbl.htmlFor = `color-${key}`;
+  lbl.textContent = key === "a" ? "Deep" : key === "b" ? "Mid" : "Peak";
+  const input = colorPickers[key];
+  input.type = "color";
+  input.id = `color-${key}`;
+  row.append(lbl, input);
+  colorGrid.append(row);
+}
+
+function waveSlider(
+  id: string,
+  label: string,
+  min: number,
+  max: number,
+  step: number,
+  value: number,
+): HTMLInputElement {
+  const wrap = document.createElement("div");
+  wrap.className = "slider-field";
+  const lbl = document.createElement("label");
+  lbl.htmlFor = id;
+  lbl.textContent = label;
+  const input = document.createElement("input");
+  input.type = "range";
+  input.id = id;
+  input.min = String(min);
+  input.max = String(max);
+  input.step = String(step);
+  input.value = String(value);
+  wrap.append(lbl, input);
+  wavePanel.append(wrap);
+  return input;
+}
+
+wavePanel.append(presetLabel, presetRow, colorGrid);
+
+const speedSlider = waveSlider("wave-speed", "Speed ω", 0.2, 2.5, 0.05, 1);
+const freqSlider = waveSlider("wave-freq", "Frequency k", 0.5, 5, 0.1, 2.2);
+const harmSlider = waveSlider("wave-harm", "Harmonics", 1, 8, 1, 4);
+const ampSlider = waveSlider("wave-amp", "Amplitude", 0.4, 2, 0.05, 1.15);
+
+const viewLabel = document.createElement("label");
+viewLabel.className = "section-label";
+viewLabel.textContent = "View transform";
+
+const viewSliders: WaveViewSliders = {
+  translateX: waveSlider("view-tx", "Translate X", -2, 2, 0.01, 0),
+  translateY: waveSlider("view-ty", "Translate Y", -2, 2, 0.01, 0),
+  rotate: waveSlider("view-rot", "Rotate", 0, TAU, 0.01, 0),
+  zoom: waveSlider("view-zoom", "Zoom", 0.25, 4, 0.01, 1),
+  twist: waveSlider("view-twist", "Twist", -3, 3, 0.01, 0),
+  kxScale: waveSlider("view-kx", "Wave scale X", 0.2, 2.5, 0.01, 1),
+  kyScale: waveSlider("view-ky", "Wave scale Y", 0.2, 2.5, 0.01, 1),
+};
+
+wavePanel.append(viewLabel);
+
+const resetViewBtn = document.createElement("button");
+resetViewBtn.type = "button";
+resetViewBtn.className = "reset-view-btn";
+resetViewBtn.textContent = "Reset view";
+wavePanel.append(
+  resetViewBtn,
+  Object.assign(document.createElement("p"), {
+    className: "hint gesture-hint",
+    textContent:
+      "Canvas: drag pan · pinch zoom · ⌘+scroll rotate · ⇧+scroll twist · ⇧/⌥+drag rotate/twist",
+  }),
+);
+
+const waveControls = document.createElement("div");
+waveControls.className = "panel controls wave-controls hidden";
+
+const waveThetaSlider = document.createElement("input");
+waveThetaSlider.type = "range";
+waveThetaSlider.id = "theta-wave";
+waveThetaSlider.min = "0";
+waveThetaSlider.max = String(TAU);
+waveThetaSlider.step = "0.002";
+waveThetaSlider.value = "0";
+
+const waveThetaDisplay = document.createElement("div");
+waveThetaDisplay.className = "theta-display";
+
+const wavePlayBtn = document.createElement("button");
+wavePlayBtn.type = "button";
+wavePlayBtn.className = "primary";
+wavePlayBtn.textContent = "▶ Animate θ";
+
+waveControls.append(
+  Object.assign(document.createElement("label"), {
+    htmlFor: "theta-wave",
+    textContent: "Phase offset θ",
+  }),
+  waveThetaSlider,
+  waveThetaDisplay,
+  wavePlayBtn,
+  Object.assign(document.createElement("p"), {
+    className: "hint",
+    textContent:
+      "Trackpad: scroll to pan, pinch to zoom, ⌘+scroll to rotate, ⇧+scroll to twist. Drag canvas to pan; ⇧/⌥ drag for rotate/twist.",
+  }),
+);
+
+sidebar.append(explorePanel, argandWrap, controls, wavePanel, waveControls);
 app.append(viewport, sidebar);
 
+const explorePanelEl = explorePanel;
+
+// Preset buttons
+let activePresetId = "euler";
+for (const preset of WAVE_PRESETS) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "preset-btn";
+  btn.dataset.preset = preset.id;
+  btn.textContent = preset.name;
+  if (preset.id === activePresetId) btn.classList.add("active");
+  presetRow.append(btn);
+}
+
+// Engines
 const scene = createScene3D(viewport);
+const wave = createWaveShader(viewport);
 const argandCtx = argandCanvas.getContext("2d")!;
 
+let mode: AppMode = "explore";
 let theta = 0;
 let playing = false;
+let wavePlaying = false;
 let helixOn = true;
 let lastTime = 0;
+let startTime = performance.now();
+
+function syncColorPickers() {
+  const { colors } = wave.getState();
+  colorPickers.a.value = rgbToHex(colors.a);
+  colorPickers.b.value = rgbToHex(colors.b);
+  colorPickers.c.value = rgbToHex(colors.c);
+}
+
+function applyPreset(preset: WavePreset) {
+  activePresetId = preset.id;
+  for (const btn of presetRow.querySelectorAll<HTMLButtonElement>(".preset-btn")) {
+    btn.classList.toggle("active", btn.dataset.preset === preset.id);
+  }
+  wave.setState({
+    colors: {
+      a: [...preset.palette.a],
+      b: [...preset.palette.b],
+      c: [...preset.palette.c],
+    },
+    speed: preset.speed,
+    freq: preset.freq,
+    harmonics: preset.harmonics,
+  });
+  speedSlider.value = String(preset.speed);
+  freqSlider.value = String(preset.freq);
+  harmSlider.value = String(preset.harmonics);
+  syncColorPickers();
+}
+
+let pushWaveUniforms: () => void;
+
+const waveView = createWaveViewHandlers(viewSliders, () => pushWaveUniforms());
+
+pushWaveUniforms = () => {
+  wave.setState({
+    theta,
+    speed: Number(speedSlider.value),
+    freq: Number(freqSlider.value),
+    harmonics: Number(harmSlider.value),
+    amplitude: Number(ampSlider.value),
+    colors: {
+      a: hexToRgb(colorPickers.a.value),
+      b: hexToRgb(colorPickers.b.value),
+      c: hexToRgb(colorPickers.c.value),
+    },
+    view: waveView.getTransform(),
+  });
+};
+
+bindWaveGestures(wave.canvas, waveView, () => mode === "wave");
+
+resetViewBtn.addEventListener("click", () => {
+  waveView.setTransform({
+    translateX: 0,
+    translateY: 0,
+    rotate: 0,
+    zoom: 1,
+    twist: 0,
+    kxScale: 1,
+    kyScale: 1,
+  });
+});
 
 function applyTheta(t: number) {
   theta = ((t % TAU) + TAU) % TAU;
   thetaSlider.value = String(theta);
+  waveThetaSlider.value = String(theta);
 
   valReal.textContent = Math.cos(theta).toFixed(3);
   valImag.textContent = Math.sin(theta).toFixed(3);
-  thetaDisplay.textContent = formatTheta(theta);
+  const label = formatTheta(theta);
+  thetaDisplay.textContent = label;
+  waveThetaDisplay.textContent = label;
   identity.classList.toggle("active", isEulerIdentity(theta));
 
   scene.setTheta(theta);
   drawArgand(argandCtx, ARGAND_SIZE, theta);
+  pushWaveUniforms();
+}
+
+function setMode(next: AppMode) {
+  mode = next;
+  app.dataset.mode = next;
+  exploreModeBtn.classList.toggle("active", next === "explore");
+  waveModeBtn.classList.toggle("active", next === "wave");
+  explorePanelEl.classList.toggle("hidden", next === "wave");
+  argandWrap.classList.toggle("hidden", next === "wave");
+  controls.classList.toggle("hidden", next === "wave");
+  wavePanel.classList.toggle("hidden", next === "explore");
+  waveControls.classList.toggle("hidden", next === "explore");
+
+  const sceneCanvas = viewport.querySelector("canvas:not(.wave-canvas)");
+  if (sceneCanvas instanceof HTMLCanvasElement) {
+    sceneCanvas.style.display = next === "explore" ? "block" : "none";
+  }
+  wave.canvas.style.display = next === "wave" ? "block" : "none";
+
+  if (next === "wave") {
+    wave.resize();
+    pushWaveUniforms();
+  } else {
+    scene.resize();
+    drawArgand(argandCtx, ARGAND_SIZE, theta);
+  }
 }
 
 function tick(now: number) {
-  if (playing) {
+  const elapsed = (now - startTime) / 1000;
+
+  if (mode === "explore" && playing) {
+    const dt = lastTime ? (now - lastTime) / 1000 : 0;
+    applyTheta(theta + dt * 0.55);
+  } else if (mode === "wave" && wavePlaying) {
     const dt = lastTime ? (now - lastTime) / 1000 : 0;
     applyTheta(theta + dt * 0.55);
   }
+
   lastTime = now;
-  scene.render();
+
+  if (mode === "explore") {
+    scene.render();
+  } else {
+    wave.render(elapsed);
+  }
+
   requestAnimationFrame(tick);
 }
+
+exploreModeBtn.addEventListener("click", () => setMode("explore"));
+waveModeBtn.addEventListener("click", () => setMode("wave"));
 
 thetaSlider.addEventListener("input", () => {
   playing = false;
@@ -174,9 +486,21 @@ thetaSlider.addEventListener("input", () => {
   applyTheta(Number(thetaSlider.value));
 });
 
+waveThetaSlider.addEventListener("input", () => {
+  wavePlaying = false;
+  wavePlayBtn.textContent = "▶ Animate θ";
+  applyTheta(Number(waveThetaSlider.value));
+});
+
 playBtn.addEventListener("click", () => {
   playing = !playing;
   playBtn.textContent = playing ? "⏸ Pause" : "▶ Animate";
+  lastTime = 0;
+});
+
+wavePlayBtn.addEventListener("click", () => {
+  wavePlaying = !wavePlaying;
+  wavePlayBtn.textContent = wavePlaying ? "⏸ Pause" : "▶ Animate θ";
   lastTime = 0;
 });
 
@@ -192,10 +516,35 @@ helixBtn.addEventListener("click", () => {
   scene.setShowHelix(helixOn);
 });
 
+for (const key of ["a", "b", "c"] as ColorKey[]) {
+  colorPickers[key].addEventListener("input", () => {
+    activePresetId = "";
+    for (const btn of presetRow.querySelectorAll(".preset-btn")) {
+      btn.classList.remove("active");
+    }
+    pushWaveUniforms();
+  });
+}
+
+for (const slider of [speedSlider, freqSlider, harmSlider, ampSlider]) {
+  slider.addEventListener("input", pushWaveUniforms);
+}
+
+presetRow.addEventListener("click", (e) => {
+  const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".preset-btn");
+  if (!btn?.dataset.preset) return;
+  const preset = WAVE_PRESETS.find((p) => p.id === btn.dataset.preset);
+  if (preset) applyPreset(preset);
+});
+
 window.addEventListener("resize", () => {
   scene.resize();
+  wave.resize();
   drawArgand(argandCtx, ARGAND_SIZE, theta);
 });
 
+const eulerPreset = WAVE_PRESETS.find((p) => p.id === "euler")!;
+applyPreset(eulerPreset);
 applyTheta(0);
+setMode("explore");
 requestAnimationFrame(tick);
