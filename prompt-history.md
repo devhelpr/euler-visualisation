@@ -28,7 +28,7 @@ when removing the start or end stops ... modify the new start or end stops corre
 
 add readme.md that describes this project
 
-## follow up prompts in Codex (5.5 "average" mode)
+## Follow up prompts in Codex (5.5 "average" mode)
 
 (in dutch)
 
@@ -49,3 +49,17 @@ doet "outside dim" nog iets nuttigs? zo niet haal hem weg.
 voeg controls toe om de opacity en andere kleur aspecten van de tekst en stroke afzonderljk te regelen
 
 add an easy way to setup the initial text settings from code , in a separate file
+
+### Translations of dutch prompts
+
+On the "wave preview" page, add an option to enter text and have the existing wave visualization as the background. You should be able to turn this on/off with a checkbox. Also, make the font and a few other CSS properties editable (be creative, just come up with something).
+
+I can see the text with the controls, but the wave effect is the background of the page when the letters are visible. I want it to be the background of the letters then; the background of the page should just be black (so the text is a kind of mask on top of the wave effect).
+
+There is a transparent layer on top of the wave in the text, making the wave effect difficult to see properly. Remove this or add a control.
+
+Place the wave effect after the stroke as well, but with an offset so you can see the difference.
+
+Does "outside dim" still do anything useful? If not, remove it.
+
+Add controls to manage the opacity and other color aspects of the text and stroke separately.
