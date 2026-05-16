@@ -36,16 +36,9 @@ function lerpRgb(a: Rgb, b: Rgb, t: number): Rgb {
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 }
 
-function gradientCss(stops: GradientStop[], mirror: boolean): string {
+function gradientCss(stops: GradientStop[]): string {
   const parts = stops.map((s) => `${rgbToHex(s.color)} ${s.pos * 100}%`);
-  if (!mirror) return `linear-gradient(90deg, ${parts.join(", ")})`;
-  const mirrored = stops
-    .slice()
-    .reverse()
-    .map((s) => ({ color: s.color, pos: 1 - s.pos }))
-    .filter((s) => s.pos > 0 && s.pos < 1);
-  const combined = [...stops, ...mirrored].sort((a, b) => a.pos - b.pos);
-  return `linear-gradient(90deg, ${combined.map((s) => `${rgbToHex(s.color)} ${s.pos * 100}%`).join(", ")})`;
+  return `linear-gradient(90deg, ${parts.join(", ")})`;
 }
 
 export function createGradientStopsUI(parent: HTMLElement, onChange: () => void): GradientStopsUI {
@@ -87,7 +80,7 @@ export function createGradientStopsUI(parent: HTMLElement, onChange: () => void)
   mirrorCheckbox.type = "checkbox";
   mirrorCheckbox.id = "gradient-mirror";
   const mirrorText = document.createElement("span");
-  mirrorText.textContent = "Mirror gradient (reverse stops)";
+  mirrorText.textContent = "Mirror in wave view (shader only)";
   mirrorLabel.append(mirrorCheckbox, mirrorText);
 
   controls.append(addBtn, removeBtn);
@@ -126,7 +119,7 @@ export function createGradientStopsUI(parent: HTMLElement, onChange: () => void)
   }
 
   function updatePreview() {
-    preview.style.background = gradientCss(stops, mirrorCheckbox.checked);
+    preview.style.background = gradientCss(stops);
   }
 
   function updateMarkers() {
