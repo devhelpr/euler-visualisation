@@ -55,12 +55,6 @@ vp preview
 
 After `vp dev`, open the URL shown in the terminal (typically `http://localhost:5173`).
 
-### Quality checks
-
-```bash
-vp check   # format, lint, typecheck
-vp test    # run tests (if configured)
-```
 
 ## Project structure
 
