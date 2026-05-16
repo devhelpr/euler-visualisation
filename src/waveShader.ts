@@ -24,6 +24,7 @@ uniform vec3 u_stops[${MAX_GRADIENT_STOPS}];
 uniform int u_stopCount;
 uniform float u_gradientMirror;
 uniform float u_speed;
+uniform float u_ripple;
 uniform float u_freq;
 uniform float u_harmonics;
 uniform float u_amplitude;
@@ -83,10 +84,12 @@ void main() {
   vec2 sum = vec2(0.0);
   int count = int(clamp(u_harmonics, 1.0, 8.0));
 
+  float animT = u_time * u_speed;
+
   for (int i = 0; i < 8; i++) {
     if (i >= count) continue;
     float fi = float(i) + 1.0;
-    float timePhase = -u_speed * u_time * fi + u_theta * fi;
+    float timePhase = -animT * fi + u_theta * fi;
 
     float phaseX = u_freq * fi * u_kxScale * p.x + timePhase;
     float phaseY = u_freq * fi * u_kyScale * p.y + timePhase + 0.785398;
@@ -116,8 +119,8 @@ void main() {
 
   vec3 stopLo = u_stops[0];
   vec3 stopHi = u_stops[max(u_stopCount - 1, 0)];
-  float ripple = 0.04 * sin(p.x * 12.0 * u_kxScale + u_time * 2.0)
-               * sin(p.y * 12.0 * u_kyScale - u_time * 1.5);
+  float ripple = u_ripple * sin(p.x * 12.0 * u_kxScale + animT * 2.0)
+               * sin(p.y * 12.0 * u_kyScale - animT * 1.5);
   col += ripple * (stopHi - stopLo);
 
   float vig = 1.0 - 0.22 * length(p) / 2.8;
@@ -129,6 +132,7 @@ void main() {
 export type WaveShaderState = {
   theta: number;
   speed: number;
+  ripple: number;
   freq: number;
   harmonics: number;
   amplitude: number;
@@ -204,6 +208,7 @@ export function createWaveShader(container: HTMLElement): WaveShader {
   const uStopCount = gl.getUniformLocation(program, "u_stopCount")!;
   const uGradientMirror = gl.getUniformLocation(program, "u_gradientMirror")!;
   const uSpeed = gl.getUniformLocation(program, "u_speed")!;
+  const uRipple = gl.getUniformLocation(program, "u_ripple")!;
   const uFreq = gl.getUniformLocation(program, "u_freq")!;
   const uHarmonics = gl.getUniformLocation(program, "u_harmonics")!;
   const uAmplitude = gl.getUniformLocation(program, "u_amplitude")!;
@@ -227,6 +232,7 @@ export function createWaveShader(container: HTMLElement): WaveShader {
   const state: WaveShaderState = {
     theta: 0,
     speed: 1,
+    ripple: 0.04,
     freq: 2.2,
     harmonics: 4,
     amplitude: 1.15,
@@ -265,6 +271,7 @@ export function createWaveShader(container: HTMLElement): WaveShader {
     gl.uniform1f(uTheta, state.theta);
     uploadStops();
     gl.uniform1f(uSpeed, state.speed);
+    gl.uniform1f(uRipple, state.ripple);
     gl.uniform1f(uFreq, state.freq);
     gl.uniform1f(uHarmonics, state.harmonics);
     gl.uniform1f(uAmplitude, state.amplitude);

@@ -246,7 +246,8 @@ const gradientUI = createGradientStopsUI(wavePanel, () => {
   pushWaveUniforms();
 });
 
-const speedSlider = waveSlider("wave-speed", "Speed ω", 0.2, 2.5, 0.05, 1);
+const speedSlider = waveSlider("wave-speed", "Wave speed ω", 0, 2.5, 0.01, 1);
+const rippleSlider = waveSlider("wave-ripple", "Ripple shimmer", 0, 0.12, 0.005, 0.04);
 const freqSlider = waveSlider("wave-freq", "Frequency k", 0.5, 5, 0.1, 2.2);
 const harmSlider = waveSlider("wave-harm", "Harmonics", 1, 8, 1, 4);
 const ampSlider = waveSlider("wave-amp", "Amplitude", 0.4, 2, 0.05, 1.15);
@@ -310,7 +311,7 @@ waveControls.append(
   Object.assign(document.createElement("p"), {
     className: "hint",
     textContent:
-      "Trackpad: scroll to pan, pinch to zoom, ⌘+scroll to rotate, ⇧+scroll to twist. Drag canvas to pan; ⇧/⌥ drag for rotate/twist.",
+      "Wave speed ω freezes wave + ripple at 0. “Animate θ” rotates phase separately. Trackpad: scroll pan · pinch zoom.",
   }),
 );
 
@@ -369,6 +370,7 @@ pushWaveUniforms = () => {
   wave.setState({
     theta,
     speed: Number(speedSlider.value),
+    ripple: Number(rippleSlider.value),
     freq: Number(freqSlider.value),
     harmonics: Number(harmSlider.value),
     amplitude: Number(ampSlider.value),
@@ -443,6 +445,7 @@ function tick(now: number) {
     applyTheta(theta + dt * 0.55);
   } else if (mode === "wave" && wavePlaying) {
     const dt = lastTime ? (now - lastTime) / 1000 : 0;
+    // θ animation is independent of wave speed (phase rotation only)
     applyTheta(theta + dt * 0.55);
   }
 
@@ -496,7 +499,7 @@ helixBtn.addEventListener("click", () => {
   scene.setShowHelix(helixOn);
 });
 
-for (const slider of [speedSlider, freqSlider, harmSlider, ampSlider]) {
+for (const slider of [speedSlider, rippleSlider, freqSlider, harmSlider, ampSlider]) {
   slider.addEventListener("input", pushWaveUniforms);
 }
 
