@@ -49,6 +49,24 @@ export function parsePresetStops(defs: GradientStopDef[]): GradientStop[] {
   return normalizeGradientStops(stopsFromColors(defs.map((d) => d.color)));
 }
 
+/** Stretch remaining stops to span 0→1 after an edge stop is removed. */
+export function rescaleStopPositions(stops: GradientStop[]): GradientStop[] {
+  if (stops.length < 2) return stops;
+  const lo = Math.min(...stops.map((s) => s.pos));
+  const hi = Math.max(...stops.map((s) => s.pos));
+  const span = hi - lo;
+  if (span < 1e-6) {
+    return stops.map((s, i) => ({
+      color: [...s.color] as Rgb,
+      pos: i / (stops.length - 1),
+    }));
+  }
+  return stops.map((s) => ({
+    color: [...s.color] as Rgb,
+    pos: (s.pos - lo) / span,
+  }));
+}
+
 export function normalizeGradientStops(stops: GradientStop[]): GradientStop[] {
   if (stops.length === 0) return stopsFromColors([]);
   const out = stops.map((s) => ({
@@ -61,7 +79,7 @@ export function normalizeGradientStops(stops: GradientStop[]): GradientStop[] {
   for (let i = 1; i < out.length - 1; i++) {
     const minP = out[i - 1]!.pos + MIN_STOP_GAP;
     const maxP = out[i + 1]!.pos - MIN_STOP_GAP;
-    out[i]!.pos = Math.max(minP, Math.min(out[i]!.pos, maxP));
+    out[i]!.pos = Math.max(minP, Math.min(maxP, maxP < minP ? minP : out[i]!.pos));
   }
   return out;
 }

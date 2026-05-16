@@ -1,6 +1,7 @@
 import {
   hexToRgb,
   normalizeGradientStops,
+  rescaleStopPositions,
   rgbToHex,
   stopsFromColors,
   type GradientStop,
@@ -39,6 +40,19 @@ function lerpRgb(a: Rgb, b: Rgb, t: number): Rgb {
 function gradientCss(stops: GradientStop[]): string {
   const parts = stops.map((s) => `${rgbToHex(s.color)} ${s.pos * 100}%`);
   return `linear-gradient(90deg, ${parts.join(", ")})`;
+}
+
+function isEdgeStop(index: number, count: number): boolean {
+  return index === 0 || index === count - 1;
+}
+
+function positionBounds(index: number, stops: GradientStop[]): { min: number; max: number } {
+  if (index <= 0) return { min: 0, max: 0 };
+  if (index >= stops.length - 1) return { min: 1, max: 1 };
+  return {
+    min: stops[index - 1]!.pos + MIN_STOP_GAP,
+    max: stops[index + 1]!.pos - MIN_STOP_GAP,
+  };
 }
 
 export function createGradientStopsUI(parent: HTMLElement, onChange: () => void): GradientStopsUI {
@@ -96,26 +110,29 @@ export function createGradientStopsUI(parent: HTMLElement, onChange: () => void)
   let selectedIndex = 0;
   let dragIndex = -1;
 
+  function refreshUi() {
+    updatePreview();
+    updateMarkers();
+    renderRows();
+  }
+
   function emitChange() {
     stops = normalizeGradientStops(stops);
+    refreshUi();
     onChange();
   }
 
   function selectStop(index: number) {
     selectedIndex = Math.max(0, Math.min(index, stops.length - 1));
-    renderRows();
-    updateMarkers();
+    refreshUi();
   }
 
   function setStopPosition(index: number, pos: number) {
-    if (index <= 0 || index >= stops.length - 1) return;
-    const minP = stops[index - 1]!.pos + MIN_STOP_GAP;
-    const maxP = stops[index + 1]!.pos - MIN_STOP_GAP;
-    stops[index]!.pos = Math.max(minP, Math.min(maxP, pos));
+    if (isEdgeStop(index, stops.length)) return;
+    const { min, max } = positionBounds(index, stops);
+    if (max <= min) return;
+    stops[index]!.pos = Math.max(min, Math.min(max, pos));
     emitChange();
-    updatePreview();
-    updateMarkers();
-    renderRows();
   }
 
   function updatePreview() {
@@ -129,11 +146,13 @@ export function createGradientStopsUI(parent: HTMLElement, onChange: () => void)
       marker.type = "button";
       marker.className = "gradient-preview-marker";
       marker.classList.toggle("selected", index === selectedIndex);
-      marker.classList.toggle("locked", index === 0 || index === stops.length - 1);
+      const edge = isEdgeStop(index, stops.length);
+      marker.classList.toggle("locked", edge);
       marker.style.left = `${stop.pos * 100}%`;
       marker.style.backgroundColor = rgbToHex(stop.color);
-      const isEdge = index === 0 || index === stops.length - 1;
-      marker.title = isEdge ? `Stop ${index + 1} (edge)` : `Stop ${index + 1} — drag to reposition`;
+      marker.title = edge
+        ? `Stop ${index + 1} (start/end — 0% or 100%)`
+        : `Stop ${index + 1} — drag to reposition`;
       marker.setAttribute("aria-label", marker.title);
       marker.setAttribute("aria-pressed", String(index === selectedIndex));
 
@@ -142,7 +161,7 @@ export function createGradientStopsUI(parent: HTMLElement, onChange: () => void)
         selectStop(index);
       });
 
-      if (!isEdge) {
+      if (!edge) {
         marker.addEventListener("pointerdown", (e) => {
           e.stopPropagation();
           e.preventDefault();
@@ -158,6 +177,8 @@ export function createGradientStopsUI(parent: HTMLElement, onChange: () => void)
 
   function renderRows() {
     stopsList.replaceChildren();
+    const onlyTwo = stops.length <= MIN_GRADIENT_STOPS;
+
     stops.forEach((stop, index) => {
       const row = document.createElement("div");
       row.className = "gradient-stop-row";
@@ -184,8 +205,7 @@ export function createGradientStopsUI(parent: HTMLElement, onChange: () => void)
       input.addEventListener("click", (e) => e.stopPropagation());
       input.addEventListener("input", () => {
         stops[index]!.color = hexToRgb(input.value);
-        updatePreview();
-        updateMarkers();
+        refreshUi();
         onChange();
       });
 
@@ -200,27 +220,38 @@ export function createGradientStopsUI(parent: HTMLElement, onChange: () => void)
 
       row.append(head);
 
-      const isEdge = index === 0 || index === stops.length - 1;
+      const edge = isEdgeStop(index, stops.length);
       const posField = document.createElement("div");
       posField.className = "gradient-stop-pos";
 
       const posLabel = document.createElement("label");
       posLabel.htmlFor = `gradient-pos-${index}`;
-      posLabel.textContent = isEdge
-        ? `Position ${Math.round(stop.pos * 100)}% (fixed)`
-        : "Position";
 
       const posSlider = document.createElement("input");
       posSlider.type = "range";
       posSlider.id = `gradient-pos-${index}`;
-      posSlider.min = "0";
-      posSlider.max = "100";
       posSlider.step = "1";
-      posSlider.value = String(Math.round(stop.pos * 100));
-      posSlider.disabled = isEdge;
-      posSlider.addEventListener("input", () => {
-        setStopPosition(index, Number(posSlider.value) / 100);
-      });
+
+      if (edge || onlyTwo) {
+        posLabel.textContent = `Position ${Math.round(stop.pos * 100)}% (start/end)`;
+        posSlider.min = String(Math.round(stop.pos * 100));
+        posSlider.max = String(Math.round(stop.pos * 100));
+        posSlider.value = posSlider.min;
+        posSlider.disabled = true;
+      } else {
+        const { min, max } = positionBounds(index, stops);
+        const minPct = Math.ceil(min * 100);
+        const maxPct = Math.floor(max * 100);
+        const valPct = Math.round(Math.max(minPct, Math.min(maxPct, stop.pos * 100)));
+        posLabel.textContent = `Position ${valPct}%`;
+        posSlider.min = String(minPct);
+        posSlider.max = String(Math.max(minPct, maxPct));
+        posSlider.value = String(valPct);
+        posSlider.disabled = maxPct <= minPct;
+        posSlider.addEventListener("input", () => {
+          setStopPosition(index, Number(posSlider.value) / 100);
+        });
+      }
 
       posField.append(posLabel, posSlider);
       row.append(posField);
@@ -234,8 +265,6 @@ export function createGradientStopsUI(parent: HTMLElement, onChange: () => void)
 
     addBtn.disabled = stops.length >= MAX_GRADIENT_STOPS;
     removeBtn.disabled = stops.length <= MIN_GRADIENT_STOPS;
-    updatePreview();
-    updateMarkers();
   }
 
   previewWrap.addEventListener("click", (e) => {
@@ -263,14 +292,14 @@ export function createGradientStopsUI(parent: HTMLElement, onChange: () => void)
     const step = e.shiftKey ? 0.05 : 0.01;
     if (e.key === "ArrowLeft") {
       e.preventDefault();
-      if (selectedIndex > 0 && selectedIndex < stops.length - 1) {
+      if (!isEdgeStop(selectedIndex, stops.length)) {
         setStopPosition(selectedIndex, stops[selectedIndex]!.pos - step);
       } else {
         selectStop(selectedIndex - 1);
       }
     } else if (e.key === "ArrowRight") {
       e.preventDefault();
-      if (selectedIndex > 0 && selectedIndex < stops.length - 1) {
+      if (!isEdgeStop(selectedIndex, stops.length)) {
         setStopPosition(selectedIndex, stops[selectedIndex]!.pos + step);
       } else {
         selectStop(selectedIndex + 1);
@@ -292,9 +321,12 @@ export function createGradientStopsUI(parent: HTMLElement, onChange: () => void)
 
   removeBtn.addEventListener("click", () => {
     if (stops.length <= MIN_GRADIENT_STOPS) return;
-    if (selectedIndex === 0 || selectedIndex === stops.length - 1) return;
+    const wasEdge = isEdgeStop(selectedIndex, stops.length);
     stops.splice(selectedIndex, 1);
-    selectStop(Math.min(selectedIndex, stops.length - 1));
+    if (wasEdge) {
+      stops = rescaleStopPositions(stops);
+    }
+    selectedIndex = Math.min(selectedIndex, stops.length - 1);
     emitChange();
   });
 
