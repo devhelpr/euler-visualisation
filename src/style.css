@@ -107,35 +107,6 @@ body {
   filter: brightness(1.25) saturate(1.15);
 }
 
-.wave-text-dom {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 88%;
-  max-width: 88%;
-  color: transparent;
-  font-size: 22vmin;
-  font-weight: 800;
-  line-height: 0.88;
-  text-align: center;
-  overflow-wrap: anywhere;
-  transform: translate(-50%, -50%);
-  filter: drop-shadow(
-      0 0 calc(1.1rem * var(--text-glow, 0.35))
-        rgb(96 165 250 / calc(0.72 * var(--text-outline-opacity, 0.55)))
-    )
-    drop-shadow(
-      0 0 calc(2.8rem * var(--text-glow, 0.35))
-        rgb(244 114 182 / calc(0.55 * var(--text-outline-opacity, 0.55)))
-    );
-  -webkit-text-stroke: var(--text-stroke, 0.035em)
-    rgb(255 255 255 / var(--text-outline-opacity, 0.55));
-  -webkit-text-fill-color: transparent;
-  text-shadow:
-    0 1px 0 rgb(255 255 255 / calc(0.3 * var(--text-outline-opacity, 0.55))),
-    0 0 1.8rem rgb(255 255 255 / calc(0.2 * var(--text-outline-opacity, 0.55)));
-}
-
 .mode-bar {
   position: absolute;
   top: 1rem;

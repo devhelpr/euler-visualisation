@@ -60,11 +60,7 @@ waveTextCanvas.className = "wave-text-preview";
 const waveTextStrokeCanvas = document.createElement("canvas");
 waveTextStrokeCanvas.className = "wave-text-preview wave-text-stroke-preview";
 
-const waveTextDom = document.createElement("div");
-waveTextDom.className = "wave-text-dom";
-waveTextDom.textContent = "EULER";
-
-waveTextOverlay.append(waveTextBackdrop, waveTextStrokeCanvas, waveTextCanvas, waveTextDom);
+waveTextOverlay.append(waveTextBackdrop, waveTextStrokeCanvas, waveTextCanvas);
 viewport.append(waveTextOverlay);
 
 // Sidebar
@@ -342,7 +338,6 @@ function textSlider(
 const textSizeSlider = textSlider("wave-text-size", "Size", 12, 34, 0.5, 22);
 const textWeightSlider = textSlider("wave-text-weight", "Weight", 300, 900, 100, 800);
 const textTrackingSlider = textSlider("wave-text-tracking", "Tracking", -0.04, 0.24, 0.005, 0.02);
-const textGlowSlider = textSlider("wave-text-glow", "Glow", 0, 1, 0.01, 0.35);
 const textBackdropSlider = textSlider("wave-text-backdrop", "Outside dim", 0, 0.85, 0.01, 0.38);
 const textStrokeSlider = textSlider("wave-text-stroke", "Stroke", 0, 0.12, 0.005, 0.035);
 const textStrokeOffsetSlider = textSlider(
@@ -352,14 +347,6 @@ const textStrokeOffsetSlider = textSlider(
   0.18,
   0.005,
   0.045,
-);
-const textOutlineOpacitySlider = textSlider(
-  "wave-text-outline-opacity",
-  "Outline opacity",
-  0,
-  1,
-  0.01,
-  0.55,
 );
 
 const textStyleRow = document.createElement("div");
@@ -390,11 +377,9 @@ textControls.append(
   textSizeSlider.parentElement!,
   textWeightSlider.parentElement!,
   textTrackingSlider.parentElement!,
-  textGlowSlider.parentElement!,
   textBackdropSlider.parentElement!,
   textStrokeSlider.parentElement!,
   textStrokeOffsetSlider.parentElement!,
-  textOutlineOpacitySlider.parentElement!,
   textStyleRow,
 );
 
@@ -536,16 +521,6 @@ pushWaveUniforms = () => {
 bindWaveGestures(wave.canvas, waveView, () => mode === "wave");
 
 function updateWaveText() {
-  const rawText = textInput.value.trim() || "Euler";
-  waveTextDom.textContent = textUpperInput.checked ? rawText.toUpperCase() : rawText;
-  waveTextDom.style.fontFamily = fontSelect.value;
-  waveTextDom.style.fontSize = `${textSizeSlider.value}vmin`;
-  waveTextDom.style.fontWeight = textWeightSlider.value;
-  waveTextDom.style.fontStyle = textItalicInput.checked ? "italic" : "normal";
-  waveTextDom.style.letterSpacing = `${textTrackingSlider.value}em`;
-  waveTextDom.style.setProperty("--text-glow", textGlowSlider.value);
-  waveTextDom.style.setProperty("--text-stroke", `${textStrokeSlider.value}em`);
-  waveTextDom.style.setProperty("--text-outline-opacity", textOutlineOpacitySlider.value);
   waveTextBackdrop.style.setProperty("--text-backdrop", textBackdropSlider.value);
   waveTextOverlay.classList.toggle("hidden", mode !== "wave" || !textEnabledInput.checked);
   viewport.classList.toggle("text-mask-active", mode === "wave" && textEnabledInput.checked);
@@ -796,11 +771,9 @@ for (const control of [
   textSizeSlider,
   textWeightSlider,
   textTrackingSlider,
-  textGlowSlider,
   textBackdropSlider,
   textStrokeSlider,
   textStrokeOffsetSlider,
-  textOutlineOpacitySlider,
   textUpperInput,
   textItalicInput,
 ]) {
