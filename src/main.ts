@@ -541,7 +541,23 @@ function resizeCanvasToViewport(canvas: HTMLCanvasElement, width: number, height
   }
 }
 
-function drawTrackedText(
+type CanvasTextContext = CanvasRenderingContext2D & {
+  letterSpacing?: string;
+};
+
+function setCanvasTracking(ctx: CanvasRenderingContext2D, tracking: number) {
+  const textCtx = ctx as CanvasTextContext;
+  if ("letterSpacing" in textCtx) {
+    textCtx.letterSpacing = `${tracking}px`;
+  }
+}
+
+function measureWaveText(ctx: CanvasRenderingContext2D, text: string, tracking: number) {
+  setCanvasTracking(ctx, tracking);
+  return ctx.measureText(text).width;
+}
+
+function drawWaveText(
   ctx: CanvasRenderingContext2D,
   text: string,
   x: number,
@@ -549,19 +565,11 @@ function drawTrackedText(
   tracking: number,
   mode: "fill" | "stroke",
 ) {
-  const chars = Array.from(text);
-  const widths = chars.map((char) => ctx.measureText(char).width);
-  const totalWidth = widths.reduce((sum, width) => sum + width, 0) + tracking * (chars.length - 1);
-  let cursor = x - totalWidth / 2;
-  for (let i = 0; i < chars.length; i++) {
-    const char = chars[i]!;
-    const charX = cursor + widths[i]! / 2;
-    if (mode === "fill") {
-      ctx.fillText(char, charX, y);
-    } else {
-      ctx.strokeText(char, charX, y);
-    }
-    cursor += widths[i]! + tracking;
+  setCanvasTracking(ctx, tracking);
+  if (mode === "fill") {
+    ctx.fillText(text, x, y);
+  } else {
+    ctx.strokeText(text, x, y);
   }
 }
 
@@ -604,9 +612,7 @@ function renderWaveText(now: number, force = false) {
   ctx.font = font();
 
   const maxWidth = width * 0.88;
-  const measured =
-    Array.from(text).reduce((sum, char) => sum + ctx.measureText(char).width, 0) +
-    tracking * Math.max(0, Array.from(text).length - 1);
+  const measured = measureWaveText(ctx, text, tracking);
   if (measured > maxWidth) {
     fontSize *= maxWidth / measured;
     tracking = Number(textTrackingSlider.value) * fontSize;
@@ -625,14 +631,14 @@ function renderWaveText(now: number, force = false) {
   strokeCtx.lineJoin = "round";
   strokeCtx.lineWidth = Math.max(1, stroke * 2.2);
   strokeCtx.strokeStyle = "#fff";
-  drawTrackedText(strokeCtx, text, x + strokeOffset, y + strokeOffset, tracking, "stroke");
+  drawWaveText(strokeCtx, text, x + strokeOffset, y + strokeOffset, tracking, "stroke");
   strokeCtx.globalCompositeOperation = "source-in";
   strokeCtx.drawImage(wave.canvas, 0, 0, width, height);
   strokeCtx.restore();
 
   ctx.save();
   ctx.fillStyle = "#fff";
-  drawTrackedText(ctx, text, x, y, tracking, "fill");
+  drawWaveText(ctx, text, x, y, tracking, "fill");
   ctx.globalCompositeOperation = "source-in";
   ctx.drawImage(wave.canvas, 0, 0, width, height);
   ctx.restore();
