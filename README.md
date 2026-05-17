@@ -1,10 +1,10 @@
-# Euler's Formula — Interactive Visualiser
+# Euler's Formula - Interactive Visualiser
 
 _Build with AI_
 
 An interactive web app for exploring **Euler's formula** and the geometry of complex exponentials. Drag the angle θ, watch **e<sup>iθ</sup>** move on the unit circle, and see the same idea extended in time as a 3D helix. A second mode turns sums of rotating complex waves into full-screen gradient art via a custom WebGL shader.
 
-**Live idea:** e<sup>iθ</sup> = cos θ + i sin θ — and at θ = π, the famous identity **e<sup>iπ</sup> + 1 = 0**.
+**Live idea:** e<sup>iθ</sup> = cos θ + i sin θ and at θ = π, the famous identity **e<sup>iπ</sup> + 1 = 0**.
 
 ## Features
 
@@ -17,10 +17,10 @@ An interactive web app for exploring **Euler's formula** and the geometry of com
 ### Wave Preview mode
 
 - **GPU shader** that sums complex exponentials Σ e<sup>iφ</sup> and maps the result to a colour gradient.
-- **Presets**: Aurora, Sunset, Ocean, Euler, Identity, Neon — each with tuned colours, speed, frequency, and harmonics.
+- **Presets**: Aurora, Sunset, Ocean, Euler, Identity, Neon. Each with tuned colours, speed, frequency, and harmonics.
 - **Gradient editor**: add, remove, drag, and mirror colour stops.
 - **Wave parameters**: speed ω, ripple shimmer, frequency k, harmonics, amplitude, and phase offset θ.
-- **View transform**: pan, zoom, rotate, twist, and per-axis wave scale — via sliders or trackpad/mouse gestures.
+- **View transform**: pan, zoom, rotate, twist, and per-axis wave scale: via sliders or trackpad/mouse gestures.
 
 ## Tech stack
 
@@ -68,6 +68,6 @@ src/
 
 ## How it works (brief)
 
-In **Explore**, θ parameterises a point on the unit circle: (cos θ, sin θ). The 3D view adds a time-like axis so repeated rotation becomes a helix — the same e<sup>iθ</sup> idea in one higher dimension.
+In **Explore**, θ parameterises a point on the unit circle: (cos θ, sin θ). The 3D view adds a time-like axis so repeated rotation becomes a helix, the same e<sup>iθ</sup> idea in one higher dimension.
 
 In **Wave Preview**, the fragment shader evaluates a superposition of complex waves (with configurable k, ω, harmonics, and phase θ), takes magnitude or phase-like quantities, and samples a user-defined gradient. Presets and the stop editor only change uniforms and colours; the same shader drives every look.
