@@ -2,7 +2,7 @@
 
 Base project was bootstrapped with vite+ ("vite plus") standard application template.
 
-21 prompts in total.
+26 prompts in total.
 
 ## Prompts in Cursor (auto mode)
 
