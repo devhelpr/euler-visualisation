@@ -63,3 +63,13 @@ Place the wave effect after the stroke as well, but with an offset so you can se
 Does "outside dim" still do anything useful? If not, remove it.
 
 Add controls to manage the opacity and other color aspects of the text and stroke separately.
+
+## Eval prompt (codex)
+
+please review if euler's formula (see https://en.wikipedia.org/wiki/Euler%27s_formula) is implemented and visualised correctly
+
+## Documentation prompts (codex)
+
+add a short and clear explainer at the bottom of the "explore"-tab (introduction and explainer). also add a disclaimer there regarding the wave preview tab
+
+extend the introduction text where the 3d visualition is explained , do this in a collapsable control (accordion) which is collapsed by default

@@ -229,6 +229,54 @@ body {
   color: var(--text-h);
 }
 
+.explainer {
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+}
+
+.explainer h2 {
+  margin: 0 0 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text);
+}
+
+.explainer p {
+  margin: 0.45rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.explainer-details {
+  margin-top: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.explainer-details summary {
+  padding: 0.55rem 0.65rem;
+  font-size: 0.8rem;
+  color: var(--text-h);
+  cursor: pointer;
+}
+
+.explainer-details p {
+  padding: 0 0.65rem 0.65rem;
+}
+
+.explainer-details p:first-of-type {
+  margin-top: 0;
+}
+
+.explainer .disclaimer {
+  color: rgba(251, 191, 36, 0.9);
+}
+
 .argand-wrap {
   padding: 0.75rem 1.5rem 1rem;
 }

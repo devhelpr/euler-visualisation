@@ -120,7 +120,46 @@ imagCard.append(
 );
 
 values.append(realCard, imagCard);
-explorePanel.append(title, subtitle, formula, identity, values);
+
+const explainer = document.createElement("div");
+explainer.className = "explainer";
+
+const threeDDetails = document.createElement("details");
+threeDDetails.className = "explainer-details";
+threeDDetails.append(
+  Object.assign(document.createElement("summary"), {
+    textContent: "How the 3D view works",
+  }),
+  Object.assign(document.createElement("p"), {
+    textContent:
+      "The 3D view lifts the same unit-circle motion into space: x = cos θ, y = sin θ, and z increases with θ. That turns repeated rotation into a helix, making phase progression visible as depth.",
+  }),
+  Object.assign(document.createElement("p"), {
+    textContent:
+      "The blue point is the current value of e^(iθ). The green and gold dashed lines show its real and imaginary components, while the helix trail shows how those values evolve as θ grows.",
+  }),
+);
+
+explainer.append(
+  Object.assign(document.createElement("h2"), {
+    textContent: "Introduction",
+  }),
+  Object.assign(document.createElement("p"), {
+    innerHTML:
+      "Euler's formula says that rotating around the unit circle can be written as e<sup>iθ</sup>. The horizontal position is cos θ, and the vertical position is sin θ.",
+  }),
+  Object.assign(document.createElement("p"), {
+    innerHTML: "At θ = π, the point lands at −1, giving Euler's identity: e<sup>iπ</sup> + 1 = 0.",
+  }),
+  threeDDetails,
+  Object.assign(document.createElement("p"), {
+    className: "disclaimer",
+    textContent:
+      "Note: Wave Preview is an Euler-inspired artistic wave field, not a literal proof or exact plot of Euler's formula.",
+  }),
+);
+
+explorePanel.append(title, subtitle, formula, identity, values, explainer);
 
 const argandWrap = document.createElement("div");
 argandWrap.className = "argand-wrap explore-only";
