@@ -73,3 +73,9 @@ please review if euler's formula (see https://en.wikipedia.org/wiki/Euler%27s_fo
 add a short and clear explainer at the bottom of the "explore"-tab (introduction and explainer). also add a disclaimer there regarding the wave preview tab
 
 extend the introduction text where the 3d visualition is explained , do this in a collapsable control (accordion) which is collapsed by default
+
+## Improve canvas visualisation prompt for accessibility
+
+can you improve the colors/thickness of the canvas visualisation in the "explore"-tab a little bit so that it s a bit better regarding accessibility/wcag? but don't over do it since it's just a demo
+
+i meant the 3d canvas visualisation on the left side, but keep what you improved

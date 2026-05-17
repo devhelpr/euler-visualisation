@@ -3,6 +3,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 const TAU = Math.PI * 2;
 const HELIX_Z_SCALE = 0.35;
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
 export type Scene3D = {
   renderer: THREE.WebGLRenderer;
@@ -14,13 +15,36 @@ export type Scene3D = {
   dispose: () => void;
 };
 
+function createSegmentTube(radius: number, color: number, opacity: number) {
+  return new THREE.Mesh(
+    new THREE.CylinderGeometry(radius, radius, 1, 10),
+    new THREE.MeshBasicMaterial({
+      color,
+      transparent: opacity < 1,
+      opacity,
+    }),
+  );
+}
+
+function updateSegmentTube(mesh: THREE.Mesh, start: THREE.Vector3, end: THREE.Vector3) {
+  const delta = new THREE.Vector3().subVectors(end, start);
+  const length = delta.length();
+
+  mesh.visible = length > 0.001;
+  if (!mesh.visible) return;
+
+  mesh.position.copy(start).addScaledVector(delta, 0.5);
+  mesh.scale.set(1, length, 1);
+  mesh.quaternion.setFromUnitVectors(Y_AXIS, delta.normalize());
+}
+
 export function createScene3D(container: HTMLElement): Scene3D {
   const width = container.clientWidth;
   const height = container.clientHeight;
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a0b10);
-  scene.fog = new THREE.Fog(0x0a0b10, 12, 28);
+  scene.background = new THREE.Color(0x070a12);
+  scene.fog = new THREE.Fog(0x070a12, 12, 28);
 
   const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
   camera.position.set(4.2, 3.5, 5.5);
@@ -36,20 +60,20 @@ export function createScene3D(container: HTMLElement): Scene3D {
   controls.target.set(0, 0, 0.8);
   controls.update();
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.45));
-  const key = new THREE.DirectionalLight(0xffffff, 0.9);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.58));
+  const key = new THREE.DirectionalLight(0xffffff, 1.05);
   key.position.set(5, 8, 6);
   scene.add(key);
-  const fill = new THREE.DirectionalLight(0x6080ff, 0.35);
+  const fill = new THREE.DirectionalLight(0x7dd3fc, 0.4);
   fill.position.set(-4, 2, -3);
   scene.add(fill);
 
-  const grid = new THREE.GridHelper(6, 24, 0x2a3050, 0x1a1e30);
+  const grid = new THREE.GridHelper(6, 24, 0x334155, 0x1e293b);
   grid.rotation.x = Math.PI / 2;
   scene.add(grid);
 
   const axes = new THREE.AxesHelper(2.8);
-  axes.setColors(new THREE.Color(0x34d399), new THREE.Color(0xfbbf24), new THREE.Color(0x818cf8));
+  axes.setColors(new THREE.Color(0x5eead4), new THREE.Color(0xfde047), new THREE.Color(0xa5b4fc));
   scene.add(axes);
 
   const circlePts: THREE.Vector3[] = [];
@@ -58,56 +82,71 @@ export function createScene3D(container: HTMLElement): Scene3D {
     const t = (i / segments) * TAU;
     circlePts.push(new THREE.Vector3(Math.cos(t), Math.sin(t), 0));
   }
-  scene.add(
-    new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints(circlePts),
-      new THREE.LineBasicMaterial({ color: 0x818cf8 }),
-    ),
+  const circleTube = new THREE.Mesh(
+    new THREE.TubeGeometry(new THREE.CatmullRomCurve3(circlePts, true), 128, 0.01, 8, true),
+    new THREE.MeshBasicMaterial({ color: 0xa5b4fc }),
   );
+  scene.add(circleTube);
 
   const helixPts: THREE.Vector3[] = [];
   for (let i = 0; i <= segments * 2; i++) {
     const t = (i / (segments * 2)) * TAU;
     helixPts.push(new THREE.Vector3(Math.cos(t), Math.sin(t), t * HELIX_Z_SCALE));
   }
-  const helixLine = new THREE.Line(
-    new THREE.BufferGeometry().setFromPoints(helixPts),
-    new THREE.LineBasicMaterial({
-      color: 0xf472b6,
+  const helixLine = new THREE.Mesh(
+    new THREE.TubeGeometry(new THREE.CatmullRomCurve3(helixPts), 192, 0.011, 8, false),
+    new THREE.MeshBasicMaterial({
+      color: 0xfb7185,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.72,
     }),
   );
   scene.add(helixLine);
 
   const projRealGeo = new THREE.BufferGeometry();
   const projImagGeo = new THREE.BufferGeometry();
-  const dashOpts = { dashSize: 0.08, gapSize: 0.05, transparent: true, opacity: 0.85 };
+  const dashOpts = { dashSize: 0.08, gapSize: 0.05, transparent: true, opacity: 0.95 };
   const projReal = new THREE.Line(
     projRealGeo,
-    new THREE.LineDashedMaterial({ color: 0x34d399, ...dashOpts }),
+    new THREE.LineDashedMaterial({ color: 0x5eead4, ...dashOpts }),
   );
   const projImag = new THREE.Line(
     projImagGeo,
-    new THREE.LineDashedMaterial({ color: 0xfbbf24, ...dashOpts }),
+    new THREE.LineDashedMaterial({ color: 0xfde047, ...dashOpts }),
   );
   scene.add(projReal, projImag);
 
   const phasorGeo = new THREE.BufferGeometry();
-  const phasor = new THREE.Line(phasorGeo, new THREE.LineBasicMaterial({ color: 0x60a5fa }));
+  const phasor = new THREE.Line(phasorGeo, new THREE.LineBasicMaterial({ color: 0x7dd3fc }));
   scene.add(phasor);
 
+  const phasorTube = createSegmentTube(0.018, 0x7dd3fc, 1);
+  const projRealTube = createSegmentTube(0.011, 0x5eead4, 0.75);
+  const projImagTube = createSegmentTube(0.011, 0xfde047, 0.75);
+  scene.add(projRealTube, projImagTube, phasorTube);
+
   const pointMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(0.08, 24, 24),
+    new THREE.SphereGeometry(0.105, 28, 28),
     new THREE.MeshStandardMaterial({
-      color: 0x60a5fa,
-      emissive: 0x2060c0,
-      emissiveIntensity: 0.8,
+      color: 0xe0f2fe,
+      emissive: 0x38bdf8,
+      emissiveIntensity: 0.6,
       metalness: 0.2,
       roughness: 0.35,
     }),
   );
   scene.add(pointMesh);
+
+  const pointHalo = new THREE.Mesh(
+    new THREE.SphereGeometry(0.17, 28, 28),
+    new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.16,
+      depthWrite: false,
+    }),
+  );
+  scene.add(pointHalo);
 
   const maxTrail = 256;
   const trailPositions = new Float32Array(maxTrail * 3);
@@ -118,7 +157,7 @@ export function createScene3D(container: HTMLElement): Scene3D {
     new THREE.LineBasicMaterial({
       color: 0x60a5fa,
       transparent: true,
-      opacity: 0.7,
+      opacity: 0.85,
     }),
   );
   scene.add(trail);
@@ -128,15 +167,23 @@ export function createScene3D(container: HTMLElement): Scene3D {
     const y = Math.sin(theta);
     const z = theta * HELIX_Z_SCALE;
 
-    phasorGeo.setFromPoints([new THREE.Vector3(0, 0, z), new THREE.Vector3(x, y, z)]);
+    const origin = new THREE.Vector3(0, 0, z);
+    const realPoint = new THREE.Vector3(x, 0, z);
+    const point = new THREE.Vector3(x, y, z);
 
-    projRealGeo.setFromPoints([new THREE.Vector3(0, 0, z), new THREE.Vector3(x, 0, z)]);
+    phasorGeo.setFromPoints([origin, point]);
+    updateSegmentTube(phasorTube, origin, point);
+
+    projRealGeo.setFromPoints([origin, realPoint]);
     projReal.computeLineDistances();
+    updateSegmentTube(projRealTube, origin, realPoint);
 
-    projImagGeo.setFromPoints([new THREE.Vector3(x, 0, z), new THREE.Vector3(x, y, z)]);
+    projImagGeo.setFromPoints([realPoint, point]);
     projImag.computeLineDistances();
+    updateSegmentTube(projImagTube, realPoint, point);
 
-    pointMesh.position.set(x, y, z);
+    pointMesh.position.copy(point);
+    pointHalo.position.copy(point);
 
     const trailCount = Math.max(2, Math.floor((theta / TAU) * maxTrail) + 1);
     for (let i = 0; i < trailCount; i++) {
