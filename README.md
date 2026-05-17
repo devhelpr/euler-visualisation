@@ -1,6 +1,6 @@
 # Euler's Formula - Interactive Visualiser
 
-_Build with AI_
+_Build with AI_ no code cleanup or refactoring was done.
 
 An interactive web app for exploring **Euler's formula** and the geometry of complex exponentials. Drag the angle θ, watch **e<sup>iθ</sup>** move on the unit circle, and see the same idea extended in time as a 3D helix. A second mode turns sums of rotating complex waves into full-screen gradient art via a custom WebGL shader.
 
