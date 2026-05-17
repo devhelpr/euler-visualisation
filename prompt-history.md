@@ -2,7 +2,7 @@
 
 Base project was bootstrapped with vite+ ("vite plus") standard application template.
 
-26 prompts in total.
+26 prompts in total + 4 extra prompts after eval with chatgpt.
 
 ## Prompts in Cursor (auto mode)
 
@@ -79,3 +79,96 @@ extend the introduction text where the 3d visualition is explained , do this in 
 can you improve the colors/thickness of the canvas visualisation in the "explore"-tab a little bit so that it s a bit better regarding accessibility/wcag? but don't over do it since it's just a demo
 
 i meant the 3d canvas visualisation on the left side, but keep what you improved
+
+## Eval with chatgpt and use the results to improve the project
+
+See https://github.com/devhelpr/euler-visualisation ... this project is the project I talk about in this chat , it has a 3d visualisation about euler formula. How does it work and how can I improve it to really show the working of euler's formula?
+
+Resulting prompt given to codex:
+
+```
+some improvements:
+
+To make it show Euler’s formula more directly, I would improve it in these ways:
+
+Put the actual formula visually in the app:
+
+e^(iθ) = cos(θ) + i sin(θ)
+
+Then show the moving point as:
+
+e^(iθ) = x + iy
+
+where:
+
+x = cos(θ)
+y = sin(θ)
+
+That makes clear that the blue point is not just “a point on a circle”, but a complex number whose real part is cosine and imaginary part is sine.
+
+Rename the helper lines:
+
+Instead of only “green and gold dashed lines”, label them directly:
+
+real part = cos(θ)
+imaginary part = sin(θ)
+
+That will help non-math visitors understand what they are looking at.
+
+Add a split view:
+
+Left: unit circle / complex plane
+Right: two waves over time:
+
+cos(θ)
+sin(θ)
+
+Then when the point moves around the circle, the waves are drawn at the same time. This would beautifully show how circular motion becomes wave motion.
+
+Add special angle markers:
+
+Show buttons for:
+
+θ = 0 → e^0 = 1
+θ = π/2 → e^(iπ/2) = i
+θ = π → e^(iπ) = -1
+θ = 2π → e^(i2π) = 1
+
+Your “jump to θ = π” is already a good idea. I would expand that into a small “key moments” section.
+
+Make the helix explanation more precise:
+
+The helix is not Euler’s formula itself, but a time/path visualization of repeated values of e^(iθ). So I would phrase it like:
+
+“The circle shows the value of e^(iθ) for one angle. The helix shows how that value evolves as θ keeps increasing over time.”
+
+Make Fourier a separate optional layer:
+
+Your Wave Preview already uses sums of complex exponentials in the shader. That is a great next step. To make the connection clearer, add a simple mode:
+
+e^(iθ) + 0.5e^(i3θ) + 0.25e^(i5θ)
+
+Then show how adding rotating circles creates a more complex wave. That would make the bridge from Euler → complex waves → Fourier much clearer.
+
+Best improvement overall: add a “Circle → Waves → Fourier” learning flow. First show e^(iθ), then show cosine/sine as projections, then show a sum of rotating complex waves. That would make the project feel less like an artistic visualization and more like a real explanation of Euler’s formula.
+```
+
+extra prompts after manual testing:
+
+```
+regarding:
+
+Make Fourier a separate optional layer:
+
+Your Wave Preview already uses sums of complex exponentials in the shader. That is a great next step. To make the connection clearer, add a simple mode:
+
+e^(iθ) + 0.5e^(i3θ) + 0.25e^(i5θ)
+
+Then show how adding rotating circles creates a more complex wave. That would make the bridge from Euler → complex waves → Fourier much clearer.
+
+... can we add a button to add circles to the wave preview that uses the same settings as the current wave but with some settings to transform it minimally
+```
+
+```
+can you also let the adding of the circle influence the wave animation?
+```

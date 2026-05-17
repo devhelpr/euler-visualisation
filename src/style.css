@@ -101,6 +101,16 @@ body {
   filter: brightness(1.25) saturate(1.15);
 }
 
+.fourier-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
 .mode-bar {
   position: absolute;
   top: 1rem;
@@ -175,6 +185,18 @@ body {
 
 .formula .highlight {
   color: var(--accent);
+}
+
+.complex-value {
+  margin: -0.55rem 0 0.85rem;
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  text-align: center;
+  color: var(--text);
+}
+
+.complex-value span {
+  color: var(--text-h);
 }
 
 .identity {
@@ -290,14 +312,35 @@ body {
   color: var(--text);
 }
 
-#argand {
+.canvas-split {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.canvas-pane-label {
+  margin-bottom: 0.35rem;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text);
+}
+
+#argand,
+#waves {
   display: block;
   width: 100%;
   height: auto;
-  aspect-ratio: 1;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: #0d0e14;
+}
+
+#argand {
+  aspect-ratio: 1;
+}
+
+#waves {
+  aspect-ratio: 16 / 9;
 }
 
 .controls label {
@@ -324,6 +367,16 @@ body {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+.key-moment-label {
+  margin-top: 0.85rem;
+}
+
+.key-moment-row button {
+  flex: 1 1 8rem;
+  font-size: 0.76rem;
+  padding: 0.4rem 0.5rem;
 }
 
 button {
@@ -613,6 +666,62 @@ button.active {
 
 .text-controls {
   padding: 0.4rem 0 0.2rem;
+}
+
+.fourier-controls {
+  padding: 0.35rem 0 0.2rem;
+}
+
+.fourier-hint {
+  margin: 0 0 0.55rem;
+}
+
+.fourier-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.fourier-row {
+  display: grid;
+  grid-template-columns: 1fr 4.5rem 4.5rem;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.fourier-row-title {
+  grid-column: 1 / -1;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text);
+}
+
+.fourier-row label {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.7rem;
+  color: var(--text);
+}
+
+.fourier-row input {
+  width: 100%;
+  min-height: 1.85rem;
+  padding: 0.25rem 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text-h);
+  font: inherit;
+}
+
+.fourier-row button {
+  align-self: end;
+  padding: 0.32rem 0.45rem;
+  font-size: 0.72rem;
 }
 
 .text-controls .section-label {

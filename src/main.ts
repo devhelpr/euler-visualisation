@@ -1,5 +1,5 @@
 import "./style.css";
-import { drawArgand } from "./argand.ts";
+import { drawArgand, drawTrigWaves } from "./argand.ts";
 import { createScene3D } from "./scene3d.ts";
 import { createWaveShader } from "./waveShader.ts";
 import { createGradientStopsUI } from "./waveGradient.ts";
@@ -11,13 +11,27 @@ const TAU = Math.PI * 2;
 const ARGAND_SIZE = 320;
 
 type AppMode = "explore" | "wave";
+type FourierCircle = {
+  id: number;
+  harmonic: HTMLInputElement;
+  amplitude: HTMLInputElement;
+  phase: HTMLInputElement;
+  speed: HTMLInputElement;
+  row: HTMLDivElement;
+};
 
 function formatTheta(theta: number): string {
   const deg = ((theta * 180) / Math.PI).toFixed(1);
+  if (Math.abs(theta - TAU) < 0.04) return `θ = 2π (${deg}°)`;
   if (Math.abs(theta - Math.PI) < 0.04) return `θ = π (${deg}°)`;
   if (Math.abs(theta) < 0.04) return `θ = 0 (${deg}°)`;
   if (Math.abs(theta - Math.PI / 2) < 0.04) return `θ = π/2 (${deg}°)`;
   return `θ = ${theta.toFixed(3)} rad (${deg}°)`;
+}
+
+function formatComplexValue(real: number, imag: number): string {
+  const sign = imag < 0 ? "−" : "+";
+  return `${real.toFixed(3)} ${sign} ${Math.abs(imag).toFixed(3)}i`;
 }
 
 function isEulerIdentity(theta: number): boolean {
@@ -61,6 +75,10 @@ waveTextStrokeCanvas.className = "wave-text-preview wave-text-stroke-preview";
 waveTextOverlay.append(waveTextStrokeCanvas, waveTextCanvas);
 viewport.append(waveTextOverlay);
 
+const fourierCanvas = document.createElement("canvas");
+fourierCanvas.className = "fourier-overlay hidden";
+viewport.append(fourierCanvas);
+
 // Sidebar
 const sidebar = document.createElement("aside");
 sidebar.className = "sidebar";
@@ -80,6 +98,10 @@ const formula = document.createElement("div");
 formula.className = "formula";
 formula.innerHTML =
   'e<sup>iθ</sup> = <span class="highlight">cos θ</span> + <span class="highlight">i sin θ</span>';
+
+const complexValue = document.createElement("div");
+complexValue.className = "complex-value";
+complexValue.innerHTML = "e<sup>iθ</sup> = <span>1.000 + 0.000i</span>";
 
 const identity = document.createElement("div");
 identity.className = "identity";
@@ -132,11 +154,11 @@ threeDDetails.append(
   }),
   Object.assign(document.createElement("p"), {
     textContent:
-      "The 3D view lifts the same unit-circle motion into space: x = cos θ, y = sin θ, and z increases with θ. That turns repeated rotation into a helix, making phase progression visible as depth.",
+      "The circle shows the value of e^(iθ) for one angle. The helix shows how that value evolves as θ keeps increasing over time.",
   }),
   Object.assign(document.createElement("p"), {
     textContent:
-      "The blue point is the current value of e^(iθ). The green and gold dashed lines show its real and imaginary components, while the helix trail shows how those values evolve as θ grows.",
+      "In 3D, x = cos θ, y = sin θ, and z increases with θ. The blue point is still the complex value; depth simply shows the path through changing angles.",
   }),
 );
 
@@ -146,7 +168,7 @@ explainer.append(
   }),
   Object.assign(document.createElement("p"), {
     innerHTML:
-      "Euler's formula says that rotating around the unit circle can be written as e<sup>iθ</sup>. The horizontal position is cos θ, and the vertical position is sin θ.",
+      "Euler's formula says that rotating around the unit circle can be written as e<sup>iθ</sup>. The moving point is a complex number x + iy, where x = cos θ and y = sin θ.",
   }),
   Object.assign(document.createElement("p"), {
     innerHTML: "At θ = π, the point lands at −1, giving Euler's identity: e<sup>iπ</sup> + 1 = 0.",
@@ -155,28 +177,53 @@ explainer.append(
   Object.assign(document.createElement("p"), {
     className: "disclaimer",
     textContent:
-      "Note: Wave Preview is an Euler-inspired artistic wave field, not a literal proof or exact plot of Euler's formula.",
+      "Note: Wave Preview is an Euler-inspired artistic wave field and a bridge toward sums of complex exponentials, not a literal proof or exact plot of Euler's formula.",
   }),
 );
 
-explorePanel.append(title, subtitle, formula, identity, values, explainer);
+explorePanel.append(title, subtitle, formula, complexValue, identity, values, explainer);
 
 const argandWrap = document.createElement("div");
 argandWrap.className = "argand-wrap explore-only";
 argandWrap.append(
   Object.assign(document.createElement("h2"), {
-    textContent: "Complex plane (canvas)",
+    textContent: "Circle → waves",
   }),
-  (() => {
-    const c = document.createElement("canvas");
-    c.id = "argand";
-    c.width = ARGAND_SIZE;
-    c.height = ARGAND_SIZE;
-    return c;
-  })(),
+  Object.assign(document.createElement("div"), {
+    className: "canvas-split",
+  }),
 );
 
-const argandCanvas = argandWrap.querySelector("canvas")!;
+const canvasSplit = argandWrap.querySelector<HTMLDivElement>(".canvas-split")!;
+const circlePane = document.createElement("div");
+circlePane.className = "canvas-pane";
+circlePane.append(
+  Object.assign(document.createElement("div"), {
+    className: "canvas-pane-label",
+    textContent: "Unit circle / complex plane",
+  }),
+);
+const argandCanvas = document.createElement("canvas");
+argandCanvas.id = "argand";
+argandCanvas.width = ARGAND_SIZE;
+argandCanvas.height = ARGAND_SIZE;
+circlePane.append(argandCanvas);
+
+const wavesPane = document.createElement("div");
+wavesPane.className = "canvas-pane";
+wavesPane.append(
+  Object.assign(document.createElement("div"), {
+    className: "canvas-pane-label",
+    textContent: "cos θ and sin θ over one turn",
+  }),
+);
+const wavesCanvas = document.createElement("canvas");
+wavesCanvas.id = "waves";
+wavesCanvas.width = ARGAND_SIZE;
+wavesCanvas.height = 180;
+wavesPane.append(wavesCanvas);
+
+canvasSplit.append(circlePane, wavesPane);
 
 const controls = document.createElement("div");
 controls.className = "panel controls explore-only";
@@ -200,11 +247,6 @@ playBtn.id = "play";
 playBtn.className = "primary";
 playBtn.textContent = "▶ Animate";
 
-const piBtn = document.createElement("button");
-piBtn.type = "button";
-piBtn.id = "pi";
-piBtn.textContent = "θ = π";
-
 const helixBtn = document.createElement("button");
 helixBtn.type = "button";
 helixBtn.id = "helix";
@@ -213,7 +255,29 @@ helixBtn.textContent = "Helix";
 
 const btnRow = document.createElement("div");
 btnRow.className = "btn-row";
-btnRow.append(playBtn, piBtn, helixBtn);
+btnRow.append(playBtn, helixBtn);
+
+const keyMomentLabel = document.createElement("label");
+keyMomentLabel.className = "section-label key-moment-label";
+keyMomentLabel.textContent = "Key moments";
+
+function keyMomentButton(label: string, value: number): HTMLButtonElement {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "key-moment-btn";
+  btn.dataset.theta = String(value);
+  btn.textContent = label;
+  return btn;
+}
+
+const keyMomentRow = document.createElement("div");
+keyMomentRow.className = "btn-row key-moment-row";
+keyMomentRow.append(
+  keyMomentButton("θ = 0 → 1", 0),
+  keyMomentButton("θ = π/2 → i", Math.PI / 2),
+  keyMomentButton("θ = π → −1", Math.PI),
+  keyMomentButton("θ = 2π → 1", TAU),
+);
 
 controls.append(
   Object.assign(document.createElement("label"), {
@@ -223,9 +287,11 @@ controls.append(
   thetaSlider,
   thetaDisplay,
   btnRow,
+  keyMomentLabel,
+  keyMomentRow,
   Object.assign(document.createElement("p"), {
     className: "hint",
-    textContent: "Drag the 3D view to orbit. Green = real axis, gold = imaginary.",
+    textContent: "Drag the 3D view to orbit. Real part = cos θ, imaginary part = sin θ.",
   }),
 );
 
@@ -535,6 +601,41 @@ textControls.append(
 
 wavePanel.append(textControls);
 
+const fourierLabel = document.createElement("label");
+fourierLabel.className = "section-label";
+fourierLabel.textContent = "Fourier circles";
+
+const fourierControls = document.createElement("div");
+fourierControls.className = "fourier-controls";
+
+const fourierBtnRow = document.createElement("div");
+fourierBtnRow.className = "gradient-stops-controls";
+
+const addFourierCircleBtn = document.createElement("button");
+addFourierCircleBtn.type = "button";
+addFourierCircleBtn.textContent = "+ Add circle";
+
+const clearFourierCirclesBtn = document.createElement("button");
+clearFourierCirclesBtn.type = "button";
+clearFourierCirclesBtn.textContent = "Clear";
+
+fourierBtnRow.append(addFourierCircleBtn, clearFourierCirclesBtn);
+
+const fourierList = document.createElement("div");
+fourierList.className = "fourier-list";
+
+fourierControls.append(
+  fourierLabel,
+  Object.assign(document.createElement("p"), {
+    className: "hint fourier-hint",
+    textContent:
+      "Overlay rotating vectors on the wave preview. Each added circle starts from the current wave phase and applies a small harmonic/amplitude transform.",
+  }),
+  fourierBtnRow,
+  fourierList,
+);
+wavePanel.append(fourierControls);
+
 const speedSlider = waveSlider("wave-speed", "Wave speed ω", 0, 2.5, 0.01, 1);
 const rippleSlider = waveSlider("wave-ripple", "Ripple shimmer", 0, 0.12, 0.005, 0.04);
 const freqSlider = waveSlider("wave-freq", "Frequency k", 0.5, 5, 0.1, 2.2);
@@ -633,6 +734,8 @@ let helixOn = true;
 let lastTime = 0;
 let lastWaveTextRender = 0;
 let waveTextDirty = true;
+let fourierCircleId = 0;
+const fourierCircles: FourierCircle[] = [];
 let startTime = performance.now();
 
 function applyPreset(preset: WavePreset) {
@@ -664,6 +767,12 @@ pushWaveUniforms = () => {
     amplitude: Number(ampSlider.value),
     stops: gradientUI.getStops(),
     gradientMirror: gradientUI.getMirror(),
+    fourier: fourierCircles.map((circle) => ({
+      harmonic: Number(circle.harmonic.value),
+      amplitude: Number(circle.amplitude.value),
+      phase: Number(circle.phase.value),
+      speed: Number(circle.speed.value),
+    })),
     view: waveView.getTransform(),
   });
 };
@@ -680,6 +789,165 @@ function updateWaveText() {
   textControls.classList.toggle("text-disabled", !textEnabledInput.checked);
   waveTextDirty = true;
   renderWaveText(performance.now(), true);
+}
+
+function smallNumberInput(
+  label: string,
+  value: number,
+  min: number,
+  max: number,
+  step: number,
+): HTMLLabelElement {
+  const wrap = document.createElement("label");
+  const input = document.createElement("input");
+  input.type = "number";
+  input.value = String(value);
+  input.min = String(min);
+  input.max = String(max);
+  input.step = String(step);
+  wrap.append(document.createTextNode(label), input);
+  return wrap;
+}
+
+function syncFourierOverlayVisibility() {
+  fourierCanvas.classList.toggle("hidden", mode !== "wave" || fourierCircles.length === 0);
+}
+
+function addFourierCircle() {
+  const index = fourierCircles.length;
+  const harmonic = index * 2 + 1;
+  const amplitude = 1 / harmonic;
+  const row = document.createElement("div");
+  row.className = "fourier-row";
+
+  const title = document.createElement("div");
+  title.className = "fourier-row-title";
+  title.textContent = `Circle ${index + 1}`;
+
+  const harmonicField = smallNumberInput("n", harmonic, 1, 15, 1);
+  const amplitudeField = smallNumberInput("amp", Number(amplitude.toFixed(3)), 0, 2, 0.05);
+  const phaseField = smallNumberInput("phase", 0, -TAU, TAU, 0.1);
+  const speedField = smallNumberInput("speed", 1, -3, 3, 0.1);
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.textContent = "Remove";
+
+  row.append(title, harmonicField, amplitudeField, phaseField, speedField, removeBtn);
+  fourierList.append(row);
+
+  const circle: FourierCircle = {
+    id: fourierCircleId++,
+    harmonic: harmonicField.querySelector("input")!,
+    amplitude: amplitudeField.querySelector("input")!,
+    phase: phaseField.querySelector("input")!,
+    speed: speedField.querySelector("input")!,
+    row,
+  };
+  fourierCircles.push(circle);
+
+  const update = () => {
+    pushWaveUniforms();
+    drawFourierCircles(performance.now() / 1000);
+  };
+  for (const input of [circle.harmonic, circle.amplitude, circle.phase, circle.speed]) {
+    input.addEventListener("input", update);
+  }
+  removeBtn.addEventListener("click", () => {
+    const i = fourierCircles.findIndex((item) => item.id === circle.id);
+    if (i >= 0) fourierCircles.splice(i, 1);
+    row.remove();
+    syncFourierOverlayVisibility();
+    pushWaveUniforms();
+    drawFourierCircles(performance.now() / 1000);
+  });
+
+  syncFourierOverlayVisibility();
+  pushWaveUniforms();
+  drawFourierCircles(performance.now() / 1000);
+}
+
+function resizeFourierCanvas() {
+  const rect = viewport.getBoundingClientRect();
+  const scale = Math.min(window.devicePixelRatio || 1, 2);
+  const width = Math.max(1, Math.floor(rect.width * scale));
+  const height = Math.max(1, Math.floor(rect.height * scale));
+  if (fourierCanvas.width !== width || fourierCanvas.height !== height) {
+    fourierCanvas.width = width;
+    fourierCanvas.height = height;
+    fourierCanvas.style.width = `${rect.width}px`;
+    fourierCanvas.style.height = `${rect.height}px`;
+  }
+}
+
+function drawFourierCircles(timeSec: number) {
+  resizeFourierCanvas();
+  const ctx = fourierCanvas.getContext("2d");
+  if (!ctx) return;
+
+  const width = fourierCanvas.width;
+  const height = fourierCanvas.height;
+  ctx.clearRect(0, 0, width, height);
+  if (mode !== "wave" || fourierCircles.length === 0) return;
+
+  const scale = width / Math.max(viewport.clientWidth, 1);
+  const baseX = width * 0.18;
+  const baseY = height * 0.5;
+  const baseRadius = Math.min(width, height) * 0.12;
+  const basePhase = theta + timeSec * Number(speedSlider.value);
+
+  let x = baseX;
+  let y = baseY;
+  const points: Array<[number, number]> = [[x, y]];
+
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.font = `${12 * scale}px ui-monospace, monospace`;
+  ctx.fillStyle = "rgba(241,245,249,0.82)";
+  ctx.fillText("Σ rotating e^(inθ)", baseX - baseRadius, baseY - baseRadius * 1.45);
+
+  for (let i = 0; i < fourierCircles.length; i++) {
+    const circle = fourierCircles[i]!;
+    const harmonic = Number(circle.harmonic.value);
+    const amplitude = Number(circle.amplitude.value);
+    const phase = Number(circle.phase.value);
+    const speed = Number(circle.speed.value);
+    const radius = baseRadius * amplitude;
+    const angle = basePhase * harmonic * speed + phase;
+    const nextX = x + Math.cos(angle) * radius;
+    const nextY = y - Math.sin(angle) * radius;
+
+    ctx.strokeStyle = `rgba(165,180,252,${0.55 - Math.min(i, 4) * 0.07})`;
+    ctx.lineWidth = Math.max(1, 1.4 * scale);
+    ctx.beginPath();
+    ctx.arc(x, y, Math.abs(radius), 0, TAU);
+    ctx.stroke();
+
+    ctx.strokeStyle = i % 2 === 0 ? "#7dd3fc" : "#fda4af";
+    ctx.lineWidth = Math.max(1.4, 2.1 * scale);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(nextX, nextY);
+    ctx.stroke();
+
+    x = nextX;
+    y = nextY;
+    points.push([x, y]);
+  }
+
+  ctx.strokeStyle = "rgba(94,234,212,0.82)";
+  ctx.lineWidth = Math.max(1.2, 1.8 * scale);
+  ctx.beginPath();
+  for (let i = 0; i < points.length; i++) {
+    const [px, py] = points[i]!;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+
+  ctx.fillStyle = "#e0f2fe";
+  ctx.beginPath();
+  ctx.arc(x, y, 4.5 * scale, 0, TAU);
+  ctx.fill();
 }
 
 function resizeCanvasToViewport(canvas: HTMLCanvasElement, width: number, height: number) {
@@ -834,12 +1102,15 @@ resetViewBtn.addEventListener("click", () => {
 });
 
 function applyTheta(t: number) {
-  theta = ((t % TAU) + TAU) % TAU;
+  theta = Math.abs(t - TAU) < 0.001 ? TAU : ((t % TAU) + TAU) % TAU;
   thetaSlider.value = String(theta);
   waveThetaSlider.value = String(theta);
 
-  valReal.textContent = Math.cos(theta).toFixed(3);
-  valImag.textContent = Math.sin(theta).toFixed(3);
+  const real = Math.cos(theta);
+  const imag = Math.sin(theta);
+  valReal.textContent = real.toFixed(3);
+  valImag.textContent = imag.toFixed(3);
+  complexValue.innerHTML = `e<sup>iθ</sup> = <span>${formatComplexValue(real, imag)}</span>`;
   const label = formatTheta(theta);
   thetaDisplay.textContent = label;
   waveThetaDisplay.textContent = label;
@@ -847,6 +1118,7 @@ function applyTheta(t: number) {
 
   scene.setTheta(theta);
   drawArgand(argandCtx, ARGAND_SIZE, theta);
+  drawTrigWaves(wavesCanvas.getContext("2d")!, ARGAND_SIZE, wavesCanvas.height, theta);
   pushWaveUniforms();
 }
 
@@ -861,10 +1133,13 @@ function setMode(next: AppMode) {
   wavePanel.classList.toggle("hidden", next === "explore");
   waveControls.classList.toggle("hidden", next === "explore");
   updateWaveText();
+  syncFourierOverlayVisibility();
 
   const sceneCanvas = Array.from(viewport.querySelectorAll("canvas")).find(
     (canvas) =>
-      !canvas.classList.contains("wave-canvas") && !canvas.classList.contains("wave-text-preview"),
+      !canvas.classList.contains("wave-canvas") &&
+      !canvas.classList.contains("wave-text-preview") &&
+      !canvas.classList.contains("fourier-overlay"),
   );
   if (sceneCanvas) {
     sceneCanvas.style.display = next === "explore" ? "block" : "none";
@@ -877,6 +1152,7 @@ function setMode(next: AppMode) {
   } else {
     scene.resize();
     drawArgand(argandCtx, ARGAND_SIZE, theta);
+    drawTrigWaves(wavesCanvas.getContext("2d")!, ARGAND_SIZE, wavesCanvas.height, theta);
   }
 }
 
@@ -899,6 +1175,7 @@ function tick(now: number) {
   } else {
     wave.render(elapsed);
     renderWaveText(now);
+    drawFourierCircles(elapsed);
   }
 
   requestAnimationFrame(tick);
@@ -931,10 +1208,22 @@ wavePlayBtn.addEventListener("click", () => {
   lastTime = 0;
 });
 
-piBtn.addEventListener("click", () => {
+addFourierCircleBtn.addEventListener("click", addFourierCircle);
+
+clearFourierCirclesBtn.addEventListener("click", () => {
+  fourierCircles.splice(0, fourierCircles.length);
+  fourierList.replaceChildren();
+  syncFourierOverlayVisibility();
+  pushWaveUniforms();
+  drawFourierCircles(performance.now() / 1000);
+});
+
+keyMomentRow.addEventListener("click", (e) => {
+  const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".key-moment-btn");
+  if (!btn?.dataset.theta) return;
   playing = false;
   playBtn.textContent = "▶ Animate";
-  applyTheta(Math.PI);
+  applyTheta(Number(btn.dataset.theta));
 });
 
 helixBtn.addEventListener("click", () => {
@@ -982,9 +1271,11 @@ presetRow.addEventListener("click", (e) => {
 window.addEventListener("resize", () => {
   scene.resize();
   wave.resize();
+  resizeFourierCanvas();
   waveTextDirty = true;
   renderWaveText(performance.now(), true);
   drawArgand(argandCtx, ARGAND_SIZE, theta);
+  drawTrigWaves(wavesCanvas.getContext("2d")!, ARGAND_SIZE, wavesCanvas.height, theta);
 });
 
 const eulerPreset = WAVE_PRESETS.find((p) => p.id === "euler")!;

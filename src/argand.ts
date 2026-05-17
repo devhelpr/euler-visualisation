@@ -64,13 +64,20 @@ export function drawArgand(ctx: CanvasRenderingContext2D, size: number, theta: n
   ctx.moveTo(cx, cy);
   ctx.lineTo(px, cy);
   ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = "#99f6e4";
+  ctx.font = "11px ui-monospace, monospace";
+  ctx.fillText("real = cos θ", cx + (px - cx) * 0.42 - 34, cy - 8);
 
+  ctx.setLineDash([5, 5]);
   ctx.strokeStyle = "#fde047";
   ctx.beginPath();
   ctx.moveTo(px, cy);
   ctx.lineTo(px, py);
   ctx.stroke();
   ctx.setLineDash([]);
+  ctx.fillStyle = "#fef08a";
+  ctx.fillText("imag = sin θ", px + 8, cy + (py - cy) * 0.5);
 
   // radius
   ctx.strokeStyle = "#7dd3fc";
@@ -110,4 +117,70 @@ export function drawArgand(ctx: CanvasRenderingContext2D, size: number, theta: n
     Math.min(px + 8, size - pad - 70),
     py - 10,
   );
+}
+
+export function drawTrigWaves(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  theta: number,
+): void {
+  const padX = 34;
+  const padY = 22;
+  const plotW = width - padX * 2;
+  const midY = height / 2;
+  const amp = (height - padY * 2) / 2;
+  const thetaX = padX + (theta / TAU) * plotW;
+
+  ctx.clearRect(0, 0, width, height);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  ctx.strokeStyle = "rgba(203,213,225,0.14)";
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const x = padX + (i / 4) * plotW;
+    ctx.beginPath();
+    ctx.moveTo(x, padY);
+    ctx.lineTo(x, height - padY);
+    ctx.stroke();
+  }
+  for (const y of [midY - amp, midY, midY + amp]) {
+    ctx.beginPath();
+    ctx.moveTo(padX, y);
+    ctx.lineTo(width - padX, y);
+    ctx.stroke();
+  }
+
+  function plot(fn: (t: number) => number, color: string) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i <= plotW; i++) {
+      const t = (i / plotW) * TAU;
+      const x = padX + i;
+      const y = midY - fn(t) * amp;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  plot(Math.cos, "#5eead4");
+  plot(Math.sin, "#fde047");
+
+  ctx.strokeStyle = "#fda4af";
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(thetaX, padY - 4);
+  ctx.lineTo(thetaX, height - padY + 4);
+  ctx.stroke();
+
+  ctx.fillStyle = "#99f6e4";
+  ctx.font = "11px ui-monospace, monospace";
+  ctx.fillText("cos θ", padX, padY - 8);
+  ctx.fillStyle = "#fef08a";
+  ctx.fillText("sin θ", padX + 58, padY - 8);
+  ctx.fillStyle = "rgba(241,245,249,0.9)";
+  ctx.fillText("θ", Math.min(thetaX + 5, width - padX), height - 8);
 }

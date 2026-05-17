@@ -2,6 +2,8 @@ import { MAX_GRADIENT_STOPS } from "./waveGradient.ts";
 import type { GradientStop } from "./wavePresets.ts";
 import type { WaveViewTransform } from "./waveView.ts";
 
+export const MAX_FOURIER_CIRCLES = 8;
+
 const VERT = `#version 300 es
 in vec2 a_pos;
 out vec2 v_uv;
@@ -29,6 +31,8 @@ uniform float u_ripple;
 uniform float u_freq;
 uniform float u_harmonics;
 uniform float u_amplitude;
+uniform vec4 u_fourier[${MAX_FOURIER_CIRCLES}];
+uniform int u_fourierCount;
 
 uniform vec2 u_translate;
 uniform float u_rotate;
@@ -111,7 +115,23 @@ void main() {
     sum += euler(phaseDiag) * 0.55;
   }
 
-  float norm = float(count) * 3.12;
+  float fourierNorm = 0.0;
+  for (int i = 0; i < ${MAX_FOURIER_CIRCLES}; i++) {
+    if (i >= u_fourierCount) break;
+    vec4 f = u_fourier[i];
+    float harmonic = max(f.x, 1.0);
+    float ampScale = f.y;
+    float phaseOffset = f.z;
+    float speedScale = f.w;
+    float circlePhase = u_freq * harmonic * (u_kxScale * p.x + u_kyScale * p.y) * 0.5
+                      - animT * harmonic * speedScale
+                      + u_theta * harmonic
+                      + phaseOffset;
+    sum += euler(circlePhase) * ampScale * 3.12;
+    fourierNorm += abs(ampScale) * 3.12;
+  }
+
+  float norm = float(count) * 3.12 + fourierNorm;
   float amp = length(sum) / norm;
   float arg = atan(sum.y, sum.x);
 
@@ -147,6 +167,12 @@ export type WaveShaderState = {
   amplitude: number;
   stops: GradientStop[];
   gradientMirror: boolean;
+  fourier: Array<{
+    harmonic: number;
+    amplitude: number;
+    phase: number;
+    speed: number;
+  }>;
   view: WaveViewTransform;
 };
 
@@ -196,6 +222,7 @@ function getWebGL2(canvas: HTMLCanvasElement): WebGL2RenderingContext {
 
 const stopsFlat = new Float32Array(MAX_GRADIENT_STOPS * 3);
 const positionsFlat = new Float32Array(MAX_GRADIENT_STOPS);
+const fourierFlat = new Float32Array(MAX_FOURIER_CIRCLES * 4);
 
 export function createWaveShader(container: HTMLElement): WaveShader {
   const canvas = document.createElement("canvas");
@@ -224,6 +251,8 @@ export function createWaveShader(container: HTMLElement): WaveShader {
   const uFreq = gl.getUniformLocation(program, "u_freq")!;
   const uHarmonics = gl.getUniformLocation(program, "u_harmonics")!;
   const uAmplitude = gl.getUniformLocation(program, "u_amplitude")!;
+  const uFourier = gl.getUniformLocation(program, "u_fourier")!;
+  const uFourierCount = gl.getUniformLocation(program, "u_fourierCount")!;
   const uTranslate = gl.getUniformLocation(program, "u_translate")!;
   const uRotate = gl.getUniformLocation(program, "u_rotate")!;
   const uZoom = gl.getUniformLocation(program, "u_zoom")!;
@@ -248,6 +277,7 @@ export function createWaveShader(container: HTMLElement): WaveShader {
       { color: [0.95, 0.45, 0.72], pos: 1 },
     ],
     gradientMirror: false,
+    fourier: [],
     view: {
       translateX: 0,
       translateY: 0,
@@ -291,6 +321,16 @@ export function createWaveShader(container: HTMLElement): WaveShader {
     gl.uniform1f(uFreq, state.freq);
     gl.uniform1f(uHarmonics, state.harmonics);
     gl.uniform1f(uAmplitude, state.amplitude);
+    const fourierCount = Math.min(state.fourier.length, MAX_FOURIER_CIRCLES);
+    for (let i = 0; i < MAX_FOURIER_CIRCLES; i++) {
+      const circle = state.fourier[i];
+      fourierFlat[i * 4] = circle?.harmonic ?? 1;
+      fourierFlat[i * 4 + 1] = circle?.amplitude ?? 0;
+      fourierFlat[i * 4 + 2] = circle?.phase ?? 0;
+      fourierFlat[i * 4 + 3] = circle?.speed ?? 1;
+    }
+    gl.uniform4fv(uFourier, fourierFlat);
+    gl.uniform1i(uFourierCount, fourierCount);
     gl.uniform2f(uTranslate, v.translateX, v.translateY);
     gl.uniform1f(uRotate, v.rotate);
     gl.uniform1f(uZoom, v.zoom);
@@ -339,6 +379,7 @@ export function createWaveShader(container: HTMLElement): WaveShader {
         }));
       }
       if (partial.view) state.view = { ...state.view, ...partial.view };
+      if (partial.fourier) state.fourier = partial.fourier.map((circle) => ({ ...circle }));
     },
     getState: () => ({
       ...state,
@@ -346,6 +387,7 @@ export function createWaveShader(container: HTMLElement): WaveShader {
         color: [...s.color] as GradientStop["color"],
         pos: s.pos,
       })),
+      fourier: state.fourier.map((circle) => ({ ...circle })),
       view: { ...state.view },
     }),
     resize,
